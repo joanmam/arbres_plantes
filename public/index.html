@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Arbres i Plantes</title>
+<style>
+  :root {
+    --green: #2d6a4f;
+    --green-light: #40916c;
+    --green-pale: #d8f3dc;
+    --green-mid: #95d5b2;
+    --accent: #1b4332;
+    --text: #1a1a1a;
+    --text-light: #555;
+    --bg: #f8fffe;
+    --radius: 16px;
+    --shadow: 0 4px 20px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--green);
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  }
+  header h1 { font-size: 20px; font-weight: 700; }
+  #settingsBtn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+  }
+
+  main { max-width: 600px; margin: 0 auto; padding: 20px; }
+
+  .upload-zone {
+    border: 2px dashed var(--green-mid);
+    border-radius: var(--radius);
+    padding: 40px 20px;
+    text-align: center;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 16px;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--green); background: var(--green-pale); }
+  .upload-zone .icon { font-size: 48px; margin-bottom: 12px; }
+  .upload-zone p { color: var(--text-light); font-size: 15px; }
+  .upload-zone strong { color: var(--green); }
+
+  .btn-row { display: flex; gap: 10px; margin-bottom: 20px; }
+  .btn {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--green); color: white; }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+  .btn-secondary { background: var(--green-pale); color: var(--green); }
+  .btn-secondary:hover { background: var(--green-mid); }
+  .btn-notion { background: #191919; color: white; }
+  .btn-notion:hover { background: #333; }
+
+  #previewContainer { margin-bottom: 20px; display: none; position: relative; }
+  #preview {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  #removePhoto {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(0,0,0,0.6); color: white;
+    border: none; border-radius: 50%;
+    width: 32px; height: 32px; font-size: 16px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+
+  #loading {
+    display: none; text-align: center; padding: 30px;
+    background: white; border-radius: var(--radius);
+    box-shadow: var(--shadow); margin-bottom: 20px;
+  }
+  .spinner {
+    width: 44px; height: 44px;
+    border: 4px solid var(--green-pale); border-top-color: var(--green);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #result {
+    display: none; background: white;
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    overflow: hidden; margin-bottom: 20px;
+  }
+  .result-header { background: var(--green); color: white; padding: 20px; }
+  .result-header h2 { font-size: 22px; margin-bottom: 4px; }
+  .result-header .scientific { font-style: italic; opacity: 0.85; font-size: 15px; }
+  .confidence-badge {
+    display: inline-block; padding: 3px 10px;
+    border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 8px;
+  }
+  .conf-Alta    { background: #b7e4c7; color: #1b4332; }
+  .conf-Mitjana { background: #ffe066; color: #7c4a00; }
+  .conf-Baixa   { background: #ffb3b3; color: #7c0000; }
+
+  .result-body { padding: 20px; }
+  .info-item { margin-bottom: 16px; }
+  .info-item label { font-size: 11px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-item p { margin-top: 4px; font-size: 15px; line-height: 1.5; }
+
+  #locInfo {
+    background: var(--green-pale); border-radius: 10px;
+    padding: 12px 16px; margin-bottom: 20px;
+    font-size: 14px; color: var(--green); display: none;
+  }
+
+  #error {
+    display: none; background: #fff0f0;
+    border: 1px solid #ffcccc; border-radius: var(--radius);
+    padding: 16px 20px; color: #c0392b; margin-bottom: 20px;
+  }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 100;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white; border-radius: var(--radius);
+    padding: 24px; width: 100%; max-width: 480px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  }
+  .modal h2 { margin-bottom: 20px; color: var(--green); }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; }
+  .form-group input {
+    width: 100%; padding: 12px;
+    border: 1.5px solid #ddd; border-radius: 10px;
+    font-size: 14px; transition: border-color 0.2s;
+  }
+  .form-group input:focus { outline: none; border-color: var(--green); }
+  .form-group small { color: var(--text-light); font-size: 12px; margin-top: 4px; display: block; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+  #toast {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--accent); color: white;
+    padding: 12px 24px; border-radius: 30px;
+    font-size: 14px; font-weight: 600;
+    transition: transform 0.3s; z-index: 200; white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 480px) {
+    main { padding: 16px; }
+    .result-header h2 { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌿 Arbres i Plantes</h1>
+  <button id="settingsBtn" onclick="openSettings()">⚙️</button>
+</header>
+
+<main>
+  <div class="upload-zone" id="uploadZone"
+       onclick="document.getElementById('fileInput').click()"
+       ondragover="event.preventDefault();this.classList.add('drag')"
+       ondragleave="this.classList.remove('drag')"
+       ondrop="handleDrop(event)">
+    <div class="icon">📷</div>
+    <p><strong>Fes clic per afegir una foto</strong></p>
+    <p>o arrossega una imatge aquí</p>
+  </div>
+  <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="handleFile(this.files[0])">
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" onclick="pickGallery()">🖼️ Galeria</button>
+    <button class="btn btn-secondary" onclick="openCamera()">📷 Càmera</button>
+  </div>
+
+  <div id="previewContainer">
+    <img id="preview" src="" alt="Foto seleccionada">
+    <button id="removePhoto" onclick="removePhoto()">✕</button>
+  </div>
+
+  <div id="locInfo"></div>
+
+  <button class="btn btn-primary" id="identifyBtn" onclick="identify()" style="margin-bottom:16px;width:100%" disabled>
+    🔍 Identificar planta
+  </button>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <p style="color:var(--text-light)">Analitzant la imatge amb Claude...</p>
+  </div>
+
+  <div id="error"></div>
+
+  <div id="result">
+    <div class="result-header">
+      <h2 id="resNom">—</h2>
+      <div class="scientific" id="resCientific">—</div>
+      <div class="confidence-badge" id="resConfianca">—</div>
+    </div>
+    <div class="result-body">
+      <div class="info-item"><label>Família</label><p id="resFamilia">—</p></div>
+      <div class="info-item"><label>Descripció</label><p id="resDescripcio">—</p></div>
+      <div class="info-item"><label>Hàbitat</label><p id="resHabitat">—</p></div>
+      <div class="info-item"><label>Curiositats</label><p id="resCuriositats">—</p></div>
+      <button class="btn btn-notion" onclick="saveToNotion()" id="saveBtn">
+        🗒️ Guardar a Notion
+      </button>
+    </div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h2>⚙️ Configuració</h2>
+    <div class="form-group">
+      <label>Clau API de Claude (Anthropic)</label>
+      <input type="password" id="anthropicKey" placeholder="sk-ant-api03-..." autocomplete="off">
+      <small>Obté-la a <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></small>
+    </div>
+    <div class="form-group">
+      <label>Token d'integració de Notion</label>
+      <input type="password" id="notionToken" placeholder="secret_..." autocomplete="off">
+      <small>Obté'l a <a href="https://notion.so/my-integrations" target="_blank">notion.so/my-integrations</a></small>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveSettings()">Guardar</button>
+      <button class="btn btn-secondary" onclick="closeSettings()">Cancel·lar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  const SERVER = IS_LOCAL
+    ? 'http://127.0.0.1:5001/arbres-i-plantes/us-central1/api'
+    : 'https://us-central1-arbres-i-plantes.cloudfunctions.net/api';
+
+  let currentFile = null;
+  let currentResult = null;
+  let currentLocation = null;
+
+  function openSettings() {
+    document.getElementById('anthropicKey').value = localStorage.getItem('anthropicKey') || '';
+    document.getElementById('notionToken').value  = localStorage.getItem('notionToken')  || '';
+    document.getElementById('settingsModal').classList.add('open');
+  }
+  function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+  function saveSettings() {
+    const key   = document.getElementById('anthropicKey').value.trim();
+    const token = document.getElementById('notionToken').value.trim();
+    if (key)   localStorage.setItem('anthropicKey', key);
+    if (token) localStorage.setItem('notionToken', token);
+    closeSettings();
+    toast('✅ Configuració guardada');
+  }
+
+  function pickGallery() {
+    const i = document.getElementById('fileInput');
+    i.removeAttribute('capture');
+    i.click();
+  }
+  function openCamera() {
+    const i = document.getElementById('fileInput');
+    i.setAttribute('capture', 'environment');
+    i.click();
+  }
+  function handleFile(file) {
+    if (!file) return;
+    currentFile = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('preview').src = e.target.result;
+      document.getElementById('previewContainer').style.display = 'block';
+      document.getElementById('uploadZone').style.display = 'none';
+      document.getElementById('identifyBtn').disabled = false;
+    };
+    reader.readAsDataURL(file);
+    getLocation();
+    hideResult();
+  }
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('uploadZone').classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) handleFile(file);
+  }
+  function removePhoto() {
+    currentFile = null;
+    document.getElementById('previewContainer').style.display = 'none';
+    document.getElementById('uploadZone').style.display = 'block';
+    document.getElementById('identifyBtn').disabled = true;
+    document.getElementById('fileInput').value = '';
+    hideResult();
+  }
+
+  function getLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(pos => {
+      currentLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      const el = document.getElementById('locInfo');
+      el.style.display = 'block';
+      el.innerHTML = `📍 ${currentLocation.lat.toFixed(5)}, ${currentLocation.lon.toFixed(5)}`;
+    }, () => {
+      currentLocation = null;
+      document.getElementById('locInfo').style.display = 'none';
+    });
+  }
+
+  async function identify() {
+    const anthropicKey = localStorage.getItem('anthropicKey');
+    if (!anthropicKey) { openSettings(); toast('⚠️ Cal configurar la clau API primer'); return; }
+    if (!currentFile) return;
+
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('identifyBtn').disabled = true;
+    hideResult(); showError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('photo', currentFile);
+      formData.append('anthropicKey', anthropicKey);
+
+      const response = await fetch(`${SERVER}/identify`, { method: 'POST', body: formData });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Error desconegut');
+      currentResult = data;
+      showResult(data);
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('identifyBtn').disabled = false;
+    }
+  }
+
+  function showResult(d) {
+    document.getElementById('resNom').textContent        = d.nom          || '—';
+    document.getElementById('resCientific').textContent  = d.nom_cientific || '—';
+    document.getElementById('resFamilia').textContent    = d.familia      || '—';
+    document.getElementById('resDescripcio').textContent = d.descripcio   || '—';
+    document.getElementById('resHabitat').textContent    = d.habitat      || '—';
+    document.getElementById('resCuriositats').textContent= d.curiositats  || '—';
+    const badge = document.getElementById('resConfianca');
+    badge.textContent = `Confiança: ${d.confianca || '—'}`;
+    badge.className = `confidence-badge conf-${d.confianca || 'Baixa'}`;
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function hideResult() { document.getElementById('result').style.display = 'none'; currentResult = null; }
+  function showError(msg) {
+    const el = document.getElementById('error');
+    el.style.display = msg ? 'block' : 'none';
+    if (msg) el.textContent = `⚠️ ${msg}`;
+  }
+
+  async function saveToNotion() {
+    const notionToken = localStorage.getItem('notionToken');
+    if (!notionToken) { openSettings(); toast('⚠️ Cal configurar el token de Notion primer'); return; }
+    if (!currentResult) return;
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Guardant...';
+
+    const planta = {
+      ...currentResult,
+      data: new Date().toISOString().split('T')[0],
+      ubicacio: currentLocation ? `${currentLocation.lat.toFixed(5)}, ${currentLocation.lon.toFixed(5)}` : '',
+      latitud:  currentLocation?.lat  ?? null,
+      longitud: currentLocation?.lon  ?? null,
+    };
+
+    try {
+      const response = await fetch(`${SERVER}/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notionToken, planta }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Error Notion');
+      btn.innerHTML = '✅ Guardat a Notion!';
+      toast('✅ Planta guardada a Notion!');
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = '🗒️ Guardar a Notion'; }, 3000);
+    } catch (err) {
+      showError(err.message);
+      btn.disabled = false;
+      btn.innerHTML = '🗒️ Guardar a Notion';
+    }
+  }
+
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  window.onload = () => {
+    if (!localStorage.getItem('anthropicKey') || !localStorage.getItem('notionToken')) {
+      setTimeout(openSettings, 500);
+    }
+  };
+</script>
+</body>
+</html>
