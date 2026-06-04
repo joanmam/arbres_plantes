@@ -24,7 +24,8 @@ export default async function handler(req, res) {
         const p = page.properties;
         return {
           nom:           p['Nom']?.title?.[0]?.plain_text || 'Desconeguda',
-          nom_cientific: p['Nom científic']?.rich_text?.[0]?.plain_text || '',
+          nom_cientific:  p['Nom científic']?.rich_text?.[0]?.plain_text || '',
+        nom_castella:   p['Nom castellà']?.rich_text?.[0]?.plain_text || '',
           ubicacio:      p['Ubicació']?.rich_text?.[0]?.plain_text || '',
           data:          p['Data']?.date?.start || page.created_time?.split('T')[0] || '',
           foto_url:      p['Foto URL']?.files?.[0]?.external?.url || p['Foto URL']?.url || '',

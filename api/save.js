@@ -16,6 +16,7 @@ export default async function handler(req, res) {
       Nom:             { title:     [{ text: { content: String(planta.nom          || 'Desconeguda') } }] },
       'Nom científic': { rich_text: [{ text: { content: String(planta.nom_cientific || '') } }] },
       'Família':       { rich_text: [{ text: { content: String(planta.familia      || '') } }] },
+      'Nom castellà':  { rich_text: [{ text: { content: String(planta.nom_castella || '') } }] },
       'Descripció':    { rich_text: [{ text: { content: String(planta.descripcio   || '') } }] },
       'Hàbitat':       { rich_text: [{ text: { content: String(planta.habitat      || '') } }] },
       Curiositats:     { rich_text: [{ text: { content: String(planta.curiositats  || '') } }] },

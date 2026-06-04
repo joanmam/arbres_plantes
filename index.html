@@ -95,6 +95,7 @@
   .plant-card .no-photo { width: 100%; height: 130px; background: var(--green-pale); display: flex; align-items: center; justify-content: center; font-size: 40px; }
   .plant-card-body { padding: 10px; }
   .plant-card-body h3 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .plant-card-body .nom-castella { font-size: 12px; font-style: italic; color: var(--text-light); margin-bottom: 2px; }
   .plant-card-body .sci { font-size: 11px; font-style: italic; color: var(--text-light); margin-bottom: 4px; }
   .plant-card-body .meta { font-size: 11px; color: var(--text-light); display: flex; flex-direction: column; gap: 2px; }
   #collectionLoading { text-align: center; padding: 40px; color: var(--text-light); }
@@ -307,7 +308,7 @@
           max_tokens: 1024,
           messages: [{ role: 'user', content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
-            { type: 'text', text: `Identifica la planta o arbre d'aquesta foto. Respon ÚNICAMENT en format JSON vàlid (sense cap text addicional, sense markdown), seguint exactament aquest esquema:\n{"nom":"nom comú en català","nom_cientific":"Nom científic","familia":"família botànica","descripcio":"descripció breu (2-3 frases)","habitat":"on sol créixer","curiositats":"una curiositat interessant","confianca":"Alta | Mitjana | Baixa"}\nSi no pots identificar la planta, retorna confianca "Baixa" i nom "Desconeguda".` }
+            { type: 'text', text: `Identifica la planta o arbre d'aquesta foto. Respon ÚNICAMENT en format JSON vàlid (sense cap text addicional, sense markdown), seguint exactament aquest esquema:\n{"nom":"nom comú en català","nom_castella":"nombre común en castellano","nom_cientific":"Nom científic","familia":"família botànica","descripcio":"descripció breu (2-3 frases)","habitat":"on sol créixer","curiositats":"una curiositat interessant","confianca":"Alta | Mitjana | Baixa"}\nSi no pots identificar la planta, retorna confianca "Baixa" i nom "Desconeguda".` }
           ]}]
         })
       });
@@ -493,6 +494,7 @@
       ${p.foto_url ? `<img src="${p.foto_url}" alt="${p.nom}" loading="lazy">` : `<div class="no-photo">🌿</div>`}
       <div class="plant-card-body">
         <h3>${p.nom || 'Desconeguda'}</h3>
+        ${p.nom_castella ? `<div class="nom-castella">${p.nom_castella}</div>` : ''}
         ${p.nom_cientific ? `<div class="sci">${p.nom_cientific}</div>` : ''}
         <div class="meta">
           ${p.ubicacio ? `<span>📍 ${p.ubicacio}</span>` : ''}
