@@ -163,11 +163,24 @@
 
 <div id="toast"></div>
 
-<script>
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+
+  const firebaseApp = initializeApp({
+    apiKey: "AIzaSyCvd3Q3H1wGNm05iTnwNOGEIfPoTYTAhQY",
+    authDomain: "arbres-i-plantes.firebaseapp.com",
+    projectId: "arbres-i-plantes",
+    storageBucket: "arbres-i-plantes.firebasestorage.app",
+    messagingSenderId: "119951407134",
+    appId: "1:119951407134:web:c566c321ddcd26c65fd60f"
+  });
+  const storage = getStorage(firebaseApp);
+
   const NOTION_DB = '82a45a640f0641d1a4cfeb95c47c8d12';
   const CORS_PROXY = 'https://corsproxy.io/?';
 
-  let currentFile = null, currentResult = null, currentLocation = null;
+  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null;
 
   function openSettings() {
     document.getElementById('anthropicKey').value = localStorage.getItem('anthropicKey') || '';
@@ -197,6 +210,7 @@
       document.getElementById('identifyBtn').disabled = false;
     };
     reader.readAsDataURL(file);
+    currentPhotoURL = null;
     getLocation(); hideResult();
   }
   function handleDrop(e) {
@@ -262,7 +276,19 @@
       try { result = JSON.parse(text); }
       catch { const m = text.match(/\{[\s\S]*\}/); result = m ? JSON.parse(m[0]) : null; }
       if (!result) throw new Error('Resposta de Claude no vàlida');
-      currentResult = result; showResult(result);
+      currentResult = result;
+
+      // Puja la foto a Firebase Storage
+      try {
+        const ext = currentFile.name?.split('.').pop() || 'jpg';
+        const storageRef = ref(storage, `plantes/${Date.now()}.${ext}`);
+        await uploadBytes(storageRef, currentFile);
+        currentPhotoURL = await getDownloadURL(storageRef);
+      } catch (e) {
+        console.warn('No s\'ha pogut pujar la foto:', e);
+      }
+
+      showResult(result);
     } catch (err) {
       showError(err.message);
     } finally {
@@ -323,6 +349,9 @@
       properties['Latitud']  = { number: currentLocation.lat };
       properties['Longitud'] = { number: currentLocation.lon };
     }
+    if (currentPhotoURL) {
+      properties['Foto URL'] = { url: currentPhotoURL };
+    }
 
     try {
       const response = await fetch(CORS_PROXY + encodeURIComponent('https://api.notion.com/v1/pages'), {
@@ -345,9 +374,19 @@
     setTimeout(() => el.classList.remove('show'), 3000);
   }
 
-  window.onload = () => {
-    if (!localStorage.getItem('anthropicKey') || !localStorage.getItem('notionToken')) setTimeout(openSettings, 600);
-  };
+  // Exposa les funcions al scope global (necessari amb type="module")
+  window.openSettings  = openSettings;
+  window.closeSettings = closeSettings;
+  window.saveSettings  = saveSettings;
+  window.pickGallery   = pickGallery;
+  window.openCamera    = openCamera;
+  window.handleFile    = handleFile;
+  window.handleDrop    = handleDrop;
+  window.removePhoto   = removePhoto;
+  window.identify      = identify;
+  window.saveToNotion  = saveToNotion;
+
+  if (!localStorage.getItem('anthropicKey') || !localStorage.getItem('notionToken')) setTimeout(openSettings, 600);
 </script>
 </body>
 </html>
