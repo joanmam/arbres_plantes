@@ -324,18 +324,24 @@
 
       // Puja la foto a imgbb
       const imgbbKey = localStorage.getItem('imgbbKey');
-      if (imgbbKey) {
+      if (!imgbbKey) {
+        toast('⚠️ Configura la clau imgbb a ⚙️ per guardar fotos');
+      } else {
         try {
-          const base64Img = base64Data;
           const formData = new FormData();
-          formData.append('image', base64Img);
+          formData.append('image', base64Data);
           const imgRes = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
             method: 'POST', body: formData
           });
           const imgData = await imgRes.json();
-          if (imgData.success) currentPhotoURL = imgData.data.url;
+          if (imgData.success) {
+            currentPhotoURL = imgData.data.url;
+            toast('📸 Foto pujada correctament!');
+          } else {
+            toast(`⚠️ Error imgbb: ${imgData.error?.message || 'clau incorrecta?'}`);
+          }
         } catch (e) {
-          console.warn('No s\'ha pogut pujar la foto:', e);
+          toast(`⚠️ Error pujant foto: ${e.message}`);
         }
       }
 
