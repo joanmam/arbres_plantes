@@ -27,7 +27,7 @@ export default async function handler(req, res) {
           nom_cientific: p['Nom científic']?.rich_text?.[0]?.plain_text || '',
           ubicacio:      p['Ubicació']?.rich_text?.[0]?.plain_text || '',
           data:          p['Data']?.date?.start || page.created_time?.split('T')[0] || '',
-          foto_url:      p['Foto URL']?.url || '',
+          foto_url:      p['Foto URL']?.files?.[0]?.external?.url || p['Foto URL']?.url || '',
         };
       });
       return res.status(200).json({ plants });

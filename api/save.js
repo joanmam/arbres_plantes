@@ -25,7 +25,12 @@ export default async function handler(req, res) {
     if (planta.ubicacio) properties['Ubicació'] = { rich_text: [{ text: { content: String(planta.ubicacio) } }] };
     if (planta.latitud  != null) properties['Latitud']  = { number: Number(planta.latitud) };
     if (planta.longitud != null) properties['Longitud'] = { number: Number(planta.longitud) };
-    // Foto URL temporalment desactivat per debug
+    const fotoUrl = String(planta.foto_url || '').trim();
+    if (fotoUrl.startsWith('http')) {
+      properties['Foto URL'] = {
+        files: [{ name: 'foto', type: 'external', external: { url: fotoUrl } }]
+      };
+    }
 
     const r = await fetch('https://api.notion.com/v1/pages', {
       method: 'POST',
