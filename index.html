@@ -400,7 +400,7 @@
         longitud: currentLocation?.lon ?? null,
         foto_url: currentPhotoURL || '',
       };
-      const response = await fetch(VERCEL_API, {
+      const response = await fetch(VERCEL_SAVE, {
         method: 'POST',
         headers: { Authorization: `Bearer ${notionToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -448,7 +448,8 @@
     localStorage.setItem('plantes', JSON.stringify(plantes.slice(0, 200)));
   }
 
-  const VERCEL_API = 'https://arbres-plantes.vercel.app/api/plants';
+  const VERCEL_API  = 'https://arbres-plantes.vercel.app/api/plants';
+  const VERCEL_SAVE = 'https://arbres-plantes.vercel.app/api/save';
 
   async function loadCollection() {
     const notionToken = localStorage.getItem('notionToken');
