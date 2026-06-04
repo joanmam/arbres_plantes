@@ -222,13 +222,29 @@
     hideResult();
   }
 
-  function getLocation() {
+  async function getLocation() {
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => {
-      currentLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      currentLocation = { lat, lon, nom: '' };
+
       const el = document.getElementById('locInfo');
       el.style.display = 'block';
-      el.innerHTML = `📍 ${currentLocation.lat.toFixed(5)}, ${currentLocation.lon.toFixed(5)}`;
+      el.innerHTML = `📍 Obtenint ubicació...`;
+
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ca`);
+        const data = await res.json();
+        const addr = data.address || {};
+        const nom = addr.village || addr.town || addr.city || addr.municipality || addr.county || addr.state || '';
+        const pais = addr.country || '';
+        currentLocation.nom = nom ? `${nom}, ${pais}` : `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+      } catch {
+        currentLocation.nom = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+      }
+
+      el.innerHTML = `📍 ${currentLocation.nom}`;
     }, () => { currentLocation = null; });
   }
 
@@ -347,7 +363,7 @@
       Data:            { date:      { start: new Date().toISOString().split('T')[0] } },
     };
     if (currentLocation) {
-      properties['Ubicació'] = { rich_text: [{ text: { content: `${currentLocation.lat.toFixed(5)}, ${currentLocation.lon.toFixed(5)}` } }] };
+      properties['Ubicació'] = { rich_text: [{ text: { content: currentLocation.nom || `${currentLocation.lat.toFixed(5)}, ${currentLocation.lon.toFixed(5)}` } }] };
       properties['Latitud']  = { number: currentLocation.lat };
       properties['Longitud'] = { number: currentLocation.lon };
     }
