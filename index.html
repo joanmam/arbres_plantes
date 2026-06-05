@@ -97,6 +97,8 @@
   .plant-card-body h3 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
   .plant-card-body .nom-castella { font-size: 12px; font-style: italic; color: var(--text-light); margin-bottom: 2px; }
   .plant-card-body .notion-link { font-size: 11px; color: var(--green); margin-top: 6px; font-weight: 600; }
+  .conf-card-alta   { border-top: 3px solid #40916c; background: #f0faf4; }
+  .conf-card-altres { border-top: 3px solid #e9c46a; background: #fffdf0; }
   .plant-card-body .sci { font-size: 11px; font-style: italic; color: var(--text-light); margin-bottom: 4px; }
   .plant-card-body .meta { font-size: 11px; color: var(--text-light); display: flex; flex-direction: column; gap: 2px; }
   #collectionLoading { text-align: center; padding: 40px; color: var(--text-light); }
@@ -490,7 +492,7 @@
   function renderCard(grid, p) {
     const dataFmt = p.data ? new Date(p.data).toLocaleDateString('ca-ES', { day:'2-digit', month:'short', year:'numeric' }) : '';
     const card = document.createElement('div');
-    card.className = 'plant-card';
+    card.className = `plant-card conf-card-${p.confianca === 'Alta' ? 'alta' : 'altres'}`;
     if (p.notion_url) {
       card.style.cursor = 'pointer';
       card.addEventListener('click', () => window.open(p.notion_url, '_blank'));
