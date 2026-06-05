@@ -96,6 +96,7 @@
   .plant-card-body { padding: 10px; }
   .plant-card-body h3 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
   .plant-card-body .nom-castella { font-size: 12px; font-style: italic; color: var(--text-light); margin-bottom: 2px; }
+  .plant-card-body .notion-link { font-size: 11px; color: var(--green); margin-top: 6px; font-weight: 600; }
   .plant-card-body .sci { font-size: 11px; font-style: italic; color: var(--text-light); margin-bottom: 4px; }
   .plant-card-body .meta { font-size: 11px; color: var(--text-light); display: flex; flex-direction: column; gap: 2px; }
   #collectionLoading { text-align: center; padding: 40px; color: var(--text-light); }
@@ -490,6 +491,10 @@
     const dataFmt = p.data ? new Date(p.data).toLocaleDateString('ca-ES', { day:'2-digit', month:'short', year:'numeric' }) : '';
     const card = document.createElement('div');
     card.className = 'plant-card';
+    if (p.notion_url) {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => window.open(p.notion_url, '_blank'));
+    }
     card.innerHTML = `
       ${p.foto_url ? `<img src="${p.foto_url}" alt="${p.nom}" loading="lazy">` : `<div class="no-photo">🌿</div>`}
       <div class="plant-card-body">
@@ -500,6 +505,7 @@
           ${p.ubicacio ? `<span>📍 ${p.ubicacio}</span>` : ''}
           ${dataFmt    ? `<span>📅 ${dataFmt}</span>`    : ''}
         </div>
+        ${p.notion_url ? `<div class="notion-link">Veure a Notion →</div>` : ''}
       </div>`;
     grid.appendChild(card);
   }
