@@ -20,18 +20,33 @@ export default async function handler(req, res) {
       });
       const d = await r.json();
       if (!r.ok) return res.status(r.status).json(d);
-      const plants = d.results.map(page => {
+      const raw = d.results.map(page => {
         const p = page.properties;
         return {
-          nom:           p['Nom']?.title?.[0]?.plain_text || 'Desconeguda',
-          nom_cientific:  p['Nom científic']?.rich_text?.[0]?.plain_text || '',
-        nom_castella:   p['Nom castellà']?.rich_text?.[0]?.plain_text || '',
-        notion_url:     page.url || '',
+          nom:          p['Nom']?.title?.[0]?.plain_text || 'Desconeguda',
+          nom_cientific: p['Nom científic']?.rich_text?.[0]?.plain_text || '',
+          nom_castella:  p['Nom castellà']?.rich_text?.[0]?.plain_text || '',
+          notion_url:    page.url || '',
           ubicacio:      p['Ubicació']?.rich_text?.[0]?.plain_text || '',
           data:          p['Data']?.date?.start || page.created_time?.split('T')[0] || '',
           foto_url:      p['Foto URL']?.files?.[0]?.external?.url || p['Foto URL']?.url || '',
         };
       });
+
+      // Agrupa per nom científic (o nom si no en té)
+      const grouped = {};
+      for (const p of raw) {
+        const key = p.nom_cientific || p.nom;
+        if (!grouped[key]) {
+          grouped[key] = { ...p, localitzacions: [] };
+        }
+        if (p.ubicacio || p.data) {
+          grouped[key].localitzacions.push({ ubicacio: p.ubicacio, data: p.data });
+        }
+        // Prioritza la foto si no en té
+        if (!grouped[key].foto_url && p.foto_url) grouped[key].foto_url = p.foto_url;
+      }
+      const plants = Object.values(grouped);
       return res.status(200).json({ plants });
     }
 

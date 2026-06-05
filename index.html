@@ -502,8 +502,13 @@
         ${p.nom_castella ? `<div class="nom-castella">${p.nom_castella}</div>` : ''}
         ${p.nom_cientific ? `<div class="sci">${p.nom_cientific}</div>` : ''}
         <div class="meta">
-          ${p.ubicacio ? `<span>📍 ${p.ubicacio}</span>` : ''}
-          ${dataFmt    ? `<span>📅 ${dataFmt}</span>`    : ''}
+          ${(p.localitzacions && p.localitzacions.length > 0)
+            ? p.localitzacions.map(l => {
+                const df = l.data ? new Date(l.data).toLocaleDateString('ca-ES', { day:'2-digit', month:'short', year:'numeric' }) : '';
+                return `<span>${l.ubicacio ? `📍 ${l.ubicacio}` : ''}${l.ubicacio && df ? ' · ' : ''}${df ? `📅 ${df}` : ''}</span>`;
+              }).join('')
+            : `${p.ubicacio ? `<span>📍 ${p.ubicacio}</span>` : ''}${dataFmt ? `<span>📅 ${dataFmt}</span>` : ''}`
+          }
         </div>
         ${p.notion_url ? `<div class="notion-link">Veure a Notion →</div>` : ''}
       </div>`;
