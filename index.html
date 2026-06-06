@@ -23,6 +23,21 @@
   header { background: var(--green); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
   header h1 { font-size: 20px; font-weight: 700; }
   #settingsBtn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 18px; }
+  #pendentsBtn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 18px; display:none; position:relative; }
+  #pendentsBadge { position:absolute; top:-4px; right:-4px; background:#e63946; color:white; border-radius:50%; width:18px; height:18px; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:50; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:white; border-radius:var(--radius); padding:24px; width:min(440px,92vw); max-height:80vh; overflow-y:auto; }
+  .modal h2 { margin-bottom:16px; }
+  .modal-actions { display:flex; gap:10px; margin-top:16px; }
+  .pendent-item { display:flex; gap:12px; align-items:center; background:var(--green-pale); border-radius:10px; padding:10px; margin-bottom:10px; }
+  .pendent-item img { width:60px; height:60px; object-fit:cover; border-radius:8px; flex-shrink:0; }
+  .pendent-item-info { flex:1; font-size:13px; color:var(--text-light); }
+  .pendent-item-info strong { color:var(--text); font-size:14px; }
+  .pendent-item-actions { display:flex; flex-direction:column; gap:6px; }
+  .btn-pendent { padding:6px 10px; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; }
+  .btn-pendent-retry { background:var(--green); color:white; }
+  .btn-pendent-del { background:#fee2e2; color:#e63946; }
 
   main { max-width: 600px; margin: 0 auto; padding: 20px; }
   @media (min-width: 768px) {
@@ -140,6 +155,7 @@
 
 <header>
   <h1>🌿 Arbres i Plantes</h1>
+  <button id="pendentsBtn" onclick="openPendents()">⏳<span id="pendentsBadge">0</span></button>
   <button id="settingsBtn" onclick="if(confirm('Tancar sessió?')){localStorage.removeItem('appAuth');location.reload();}">🚪</button>
 </header>
 
@@ -231,12 +247,22 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="pendentsModal">
+  <div class="modal">
+    <h2>⏳ Identificacions pendents</h2>
+    <div id="pendentsList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closePendents()">Tancar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
   const APP_PASSWORD = 'Plantes2026';
 
-  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, currentLloc = 'Nostre';
+  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, currentLloc = 'Nostre', gpsPromise = null;
 
   function checkPassword() {
     const val = document.getElementById('loginInput').value;
@@ -295,30 +321,31 @@
     hideResult();
   }
 
-  async function getLocation() {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(async pos => {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
-      currentLocation = { lat, lon, nom: '' };
+  function getLocation() {
+    if (!navigator.geolocation) { gpsPromise = Promise.resolve(); return; }
+    const el = document.getElementById('locInfo');
+    el.style.display = 'block';
+    el.innerHTML = `📍 Obtenint ubicació...`;
 
-      const el = document.getElementById('locInfo');
-      el.style.display = 'block';
-      el.innerHTML = `📍 Obtenint ubicació...`;
-
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ca`);
-        const data = await res.json();
-        const addr = data.address || {};
-        const nom = addr.village || addr.town || addr.city || addr.municipality || addr.county || addr.state || '';
-        const pais = addr.country || '';
-        currentLocation.nom = nom ? `${nom}, ${pais}` : `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-      } catch {
-        currentLocation.nom = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-      }
-
-      el.innerHTML = `📍 ${currentLocation.nom}`;
-    }, () => { currentLocation = null; });
+    gpsPromise = new Promise(resolve => {
+      navigator.geolocation.getCurrentPosition(async pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        currentLocation = { lat, lon, nom: '' };
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ca`);
+          const data = await res.json();
+          const addr = data.address || {};
+          const nom = addr.village || addr.town || addr.city || addr.municipality || addr.county || addr.state || '';
+          const pais = addr.country || '';
+          currentLocation.nom = nom ? `${nom}, ${pais}` : `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        } catch {
+          currentLocation.nom = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        }
+        el.innerHTML = `📍 ${currentLocation.nom}`;
+        resolve();
+      }, () => { currentLocation = null; el.innerHTML = ''; resolve(); }, { timeout: 8000 });
+    });
   }
 
   function resizeImage(file, maxSize = 1024) {
@@ -407,14 +434,21 @@
   function showError(msg) {
     const el = document.getElementById('error');
     el.style.display = msg ? 'block' : 'none';
-    if (msg) el.textContent = `⚠️ ${msg}`;
+    if (msg) {
+      el.innerHTML = `⚠️ ${msg}
+        <br><button onclick="desarPendent()" style="margin-top:10px;padding:8px 16px;background:var(--green);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;width:100%">
+          💾 Desa per més tard (conserva GPS i lloc)
+        </button>`;
+    }
   }
 
   async function saveToNotion() {
     if (!currentResult) return;
 
     const btn = document.getElementById('saveBtn');
-    btn.disabled = true; btn.innerHTML = '⏳ Guardant...';
+    btn.disabled = true; btn.innerHTML = '📍 Esperant GPS...';
+    await Promise.race([gpsPromise || Promise.resolve(), new Promise(r => setTimeout(r, 5000))]);
+    btn.innerHTML = '⏳ Guardant...';
 
     try {
       const payload = {
@@ -448,6 +482,108 @@
     } catch (err) {
       showError(err.message); btn.disabled = false; btn.innerHTML = '🗒️ Guardar a Notion';
     }
+  }
+
+  // ── Pendents ──────────────────────────────────────────────────────────────
+  function getPendents() { try { return JSON.parse(localStorage.getItem('pendents') || '[]'); } catch { return []; } }
+  function savePendents(arr) { localStorage.setItem('pendents', JSON.stringify(arr)); }
+
+  function updatePendentsBadge() {
+    const n = getPendents().length;
+    const btn = document.getElementById('pendentsBtn');
+    btn.style.display = n > 0 ? 'inline-flex' : 'none';
+    document.getElementById('pendentsBadge').textContent = n;
+  }
+
+  function desarPendent() {
+    if (!currentFile) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const pendents = getPendents();
+      pendents.unshift({
+        id: Date.now(),
+        imageData: e.target.result,
+        lat: currentLocation?.lat ?? null,
+        lon: currentLocation?.lon ?? null,
+        ubicacio: currentLocation?.nom || '',
+        lloc: getLloc(),
+        data: new Date().toISOString().split('T')[0],
+      });
+      savePendents(pendents);
+      updatePendentsBadge();
+      toast('💾 Desat per més tard amb GPS i lloc!');
+    };
+    reader.readAsDataURL(currentFile);
+  }
+
+  function openPendents() {
+    const pendents = getPendents();
+    const list = document.getElementById('pendentsList');
+    if (pendents.length === 0) { list.innerHTML = '<p style="color:var(--text-light);text-align:center">No hi ha identificacions pendents</p>'; }
+    else {
+      list.innerHTML = pendents.map(p => `
+        <div class="pendent-item" id="pendent-${p.id}">
+          <img src="${p.imageData}" alt="pendent">
+          <div class="pendent-item-info">
+            <strong>${p.lloc || 'Sense lloc'}</strong><br>
+            ${p.ubicacio ? `📍 ${p.ubicacio}<br>` : ''}
+            📅 ${p.data}
+          </div>
+          <div class="pendent-item-actions">
+            <button class="btn-pendent btn-pendent-retry" onclick="reintentarPendent(${p.id})">🔍 Identificar</button>
+            <button class="btn-pendent btn-pendent-del" onclick="eliminarPendent(${p.id})">✕ Eliminar</button>
+          </div>
+        </div>`).join('');
+    }
+    document.getElementById('pendentsModal').classList.add('open');
+  }
+
+  function closePendents() { document.getElementById('pendentsModal').classList.remove('open'); }
+
+  async function reintentarPendent(id) {
+    const pendents = getPendents();
+    const p = pendents.find(x => x.id === id);
+    if (!p) return;
+    closePendents();
+
+    // Restaura el context
+    const res = await fetch(p.imageData);
+    const blob = await res.blob();
+    currentFile = new File([blob], `pendent_${id}.jpg`, { type: 'image/jpeg' });
+    currentLocation = (p.lat != null) ? { lat: p.lat, lon: p.lon, nom: p.ubicacio } : null;
+    currentLloc = p.lloc || 'Nostre';
+    gpsPromise = Promise.resolve();
+
+    // Mostra la previsualització
+    document.getElementById('preview').src = p.imageData;
+    document.getElementById('previewContainer').style.display = 'block';
+    document.getElementById('uploadZone').style.display = 'none';
+    document.getElementById('identifyBtn').disabled = false;
+    document.getElementById('llocContainer').style.display = 'block';
+    document.getElementById('llocSelect').value = ['Nostre','Iaia'].includes(p.lloc) ? p.lloc : 'Altres';
+    if (!['Nostre','Iaia'].includes(p.lloc)) {
+      document.getElementById('llocAltresInput').style.display = 'block';
+      document.getElementById('llocAltresInput').value = p.lloc;
+    }
+    if (currentLocation) {
+      const el = document.getElementById('locInfo');
+      el.style.display = 'block';
+      el.innerHTML = `📍 ${currentLocation.nom}`;
+    }
+
+    // Identifica directament
+    await identify();
+
+    // Si ha funcionat, elimina el pendent
+    if (currentResult) eliminarPendent(id);
+  }
+
+  function eliminarPendent(id) {
+    const pendents = getPendents().filter(p => p.id !== id);
+    savePendents(pendents);
+    updatePendentsBadge();
+    const el = document.getElementById(`pendent-${id}`);
+    if (el) el.remove();
   }
 
   function toast(msg) {
@@ -598,6 +734,7 @@
     document.getElementById('loginInput')?.addEventListener('keydown', e => {
       if (e.key === 'Enter') checkPassword();
     });
+    updatePendentsBadge();
   };
 </script>
 </body>
