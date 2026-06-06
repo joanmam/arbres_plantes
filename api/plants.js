@@ -31,13 +31,14 @@ export default async function handler(req, res) {
           ubicacio:      p['Ubicació']?.rich_text?.[0]?.plain_text || '',
           data:          p['Data']?.date?.start || page.created_time?.split('T')[0] || '',
           foto_url:      p['Foto URL']?.files?.[0]?.external?.url || p['Foto URL']?.url || '',
+          lloc:          p['Lloc']?.select?.name || '',
         };
       });
 
-      // Agrupa per nom científic (o nom si no en té)
+      // Agrupa per lloc + nom científic (o nom si no en té)
       const grouped = {};
       for (const p of raw) {
-        const key = p.nom_cientific || p.nom;
+        const key = (p.lloc || '') + '|' + (p.nom_cientific || p.nom);
         if (!grouped[key]) {
           grouped[key] = { ...p, localitzacions: [] };
         }

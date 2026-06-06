@@ -42,6 +42,13 @@
   .btn-notion { background: #191919; color: white; }
   .btn-notion:hover { background: #333; }
 
+  #llocContainer { margin-bottom: 16px; background: white; border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); display: none; }
+  #llocContainer label { font-size: 13px; font-weight: 600; color: var(--text-light); display: block; margin-bottom: 8px; }
+  #llocSelect { width: 100%; padding: 10px 12px; border: 1.5px solid var(--green-mid); border-radius: 10px; font-size: 15px; font-weight: 600; color: var(--text); background: var(--bg); appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232d6a4f' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; }
+  #llocSelect:focus { outline: none; border-color: var(--green); }
+  #llocAltresInput { margin-top: 10px; width: 100%; padding: 10px 12px; border: 1.5px solid var(--green-mid); border-radius: 10px; font-size: 15px; color: var(--text); background: var(--bg); display: none; }
+  #llocAltresInput:focus { outline: none; border-color: var(--green); }
+
   #previewContainer { margin-bottom: 20px; display: none; position: relative; }
   #preview { width: 100%; max-height: 300px; object-fit: cover; border-radius: var(--radius); box-shadow: var(--shadow); }
   #removePhoto { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 16px; cursor: pointer; }
@@ -103,6 +110,9 @@
   .plant-card-body .meta { font-size: 11px; color: var(--text-light); display: flex; flex-direction: column; gap: 2px; }
   #collectionLoading { text-align: center; padding: 40px; color: var(--text-light); }
   #collectionEmpty { text-align: center; padding: 40px; color: var(--text-light); }
+  .lloc-group { margin-bottom: 24px; }
+  .lloc-group-header { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--green); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--green-pale); }
+  .lloc-group-count { font-size: 12px; font-weight: 500; background: var(--green-pale); color: var(--green); border-radius: 20px; padding: 2px 8px; }
 
   @media (max-width: 480px) { main { padding: 16px; } .result-header h2 { font-size: 19px; } .collection-grid { grid-template-columns: 1fr 1fr; gap: 8px; } }
 </style>
@@ -144,6 +154,16 @@
 
   <div id="locInfo"></div>
 
+  <div id="llocContainer">
+    <label>📍 Lloc</label>
+    <select id="llocSelect" onchange="onLlocChange()">
+      <option value="Nostre">🏡 Nostre</option>
+      <option value="Iaia">👵 Iaia</option>
+      <option value="Altres">✏️ Altres...</option>
+    </select>
+    <input type="text" id="llocAltresInput" placeholder="Escriu el lloc..." oninput="updateLlocAltres()">
+  </div>
+
   <button class="btn btn-primary" id="identifyBtn" onclick="identify()" style="margin-bottom:16px;width:100%" disabled>
     🔍 Identificar planta
   </button>
@@ -174,7 +194,7 @@
 <div class="tab-content" id="tab-colleccio">
   <div id="collectionLoading" style="display:none"><div class="spinner" style="margin:30px auto"></div></div>
   <div id="collectionEmpty" style="display:none">🌱 Encara no hi ha plantes guardades</div>
-  <div class="collection-grid" id="collectionGrid"></div>
+  <div id="collectionGrid"></div>
 </div>
 </main>
 
@@ -209,7 +229,7 @@
   const NOTION_DB = '82a45a640f0641d1a4cfeb95c47c8d12';
   const CORS_PROXY = 'https://corsproxy.io/?';
 
-  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null;
+  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, currentLloc = 'Nostre';
 
   function openSettings() {
     document.getElementById('anthropicKey').value = localStorage.getItem('anthropicKey') || '';
@@ -231,6 +251,18 @@
   function pickGallery() { const i = document.getElementById('fileInput'); i.removeAttribute('capture'); i.click(); }
   function openCamera()  { const i = document.getElementById('fileInput'); i.setAttribute('capture', 'environment'); i.click(); }
 
+  function onLlocChange() {
+    const sel = document.getElementById('llocSelect').value;
+    const altresInput = document.getElementById('llocAltresInput');
+    altresInput.style.display = sel === 'Altres' ? 'block' : 'none';
+    currentLloc = sel === 'Altres' ? (altresInput.value.trim() || 'Altres') : sel;
+  }
+  function updateLlocAltres() {
+    const val = document.getElementById('llocAltresInput').value.trim();
+    currentLloc = val || 'Altres';
+  }
+  function getLloc() { return currentLloc || 'Nostre'; }
+
   function handleFile(file) {
     if (!file) return;
     currentFile = file;
@@ -240,6 +272,7 @@
       document.getElementById('previewContainer').style.display = 'block';
       document.getElementById('uploadZone').style.display = 'none';
       document.getElementById('identifyBtn').disabled = false;
+      document.getElementById('llocContainer').style.display = 'block';
     };
     reader.readAsDataURL(file);
     currentPhotoURL = null;
@@ -255,6 +288,7 @@
     document.getElementById('previewContainer').style.display = 'none';
     document.getElementById('uploadZone').style.display = 'block';
     document.getElementById('identifyBtn').disabled = true;
+    document.getElementById('llocContainer').style.display = 'none';
     document.getElementById('fileInput').value = '';
     hideResult();
   }
@@ -403,6 +437,7 @@
         latitud:  currentLocation?.lat ?? null,
         longitud: currentLocation?.lon ?? null,
         foto_url: currentPhotoURL || '',
+        lloc: getLloc(),
       };
       const response = await fetch(VERCEL_SAVE, {
         method: 'POST',
@@ -475,17 +510,48 @@
       const plantes = data.plants;
       if (!plantes || plantes.length === 0) { empty.style.display = 'block'; return; }
 
-      plantes.forEach(p => renderCard(grid, p));
+      renderByLloc(grid, plantes);
     } catch (err) {
       loading.style.display = 'none';
       // Fallback: mostrar les guardades localment
       const locals = getLocalPlants();
       if (locals.length > 0) {
-        locals.forEach(p => renderCard(grid, p));
+        renderByLloc(grid, locals);
       } else {
         empty.textContent = `⚠️ ${err.message}`;
         empty.style.display = 'block';
       }
+    }
+  }
+
+  const LLOC_ORDER = ['Nostre', 'Iaia'];
+  const LLOC_ICONS = { 'Nostre': '🏡', 'Iaia': '👵' };
+
+  function renderByLloc(container, plantes) {
+    container.innerHTML = '';
+    // Agrupar per lloc
+    const grups = {};
+    for (const p of plantes) {
+      const lloc = p.lloc || 'Altres';
+      if (!grups[lloc]) grups[lloc] = [];
+      grups[lloc].push(p);
+    }
+    // Ordre: Nostre, Iaia, resta alfabèticament
+    const llocKeys = [
+      ...LLOC_ORDER.filter(l => grups[l]),
+      ...Object.keys(grups).filter(l => !LLOC_ORDER.includes(l)).sort()
+    ];
+    for (const lloc of llocKeys) {
+      const items = grups[lloc];
+      const groupDiv = document.createElement('div');
+      groupDiv.className = 'lloc-group';
+      const icon = LLOC_ICONS[lloc] || '✏️';
+      groupDiv.innerHTML = `<div class="lloc-group-header">${icon} ${lloc} <span class="lloc-group-count">${items.length}</span></div>`;
+      const gridDiv = document.createElement('div');
+      gridDiv.className = 'collection-grid';
+      items.forEach(p => renderCard(gridDiv, p));
+      groupDiv.appendChild(gridDiv);
+      container.appendChild(groupDiv);
     }
   }
 
