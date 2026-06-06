@@ -139,7 +139,7 @@
 
 <header>
   <h1>🌿 Arbres i Plantes</h1>
-  <button id="settingsBtn" onclick="openSettings()">⚙️</button>
+  <button id="settingsBtn" onclick="if(confirm('Tancar sessió?')){localStorage.removeItem('appAuth');location.reload();}">🚪</button>
 </header>
 
 <div class="tabs">
@@ -217,54 +217,35 @@
 </div>
 </main>
 
-<div class="modal-overlay" id="settingsModal">
-  <div class="modal">
-    <h2>⚙️ Configuració</h2>
-    <div class="form-group">
-      <label>Clau API de Claude (Anthropic)</label>
-      <input type="password" id="anthropicKey" placeholder="sk-ant-api03-..." autocomplete="off">
-      <small>Obté-la a <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></small>
-    </div>
-    <div class="form-group">
-      <label>Token d'integració de Notion</label>
-      <input type="password" id="notionToken" placeholder="secret_..." autocomplete="off">
-      <small>Obté'l a <a href="https://notion.so/my-integrations" target="_blank">notion.so/my-integrations</a></small>
-    </div>
-    <div class="form-group">
-      <label>Clau API imgbb (per guardar fotos)</label>
-      <input type="password" id="imgbbKey" placeholder="abc123..." autocomplete="off">
-      <small>Obté-la gratis a <a href="https://api.imgbb.com" target="_blank">api.imgbb.com</a></small>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="saveSettings()">Guardar</button>
-      <button class="btn btn-secondary" onclick="closeSettings()">Cancel·lar</button>
-    </div>
+<!-- Pantalla de contrasenya -->
+<div id="loginScreen" style="display:none; position:fixed; inset:0; background:var(--green); z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;">
+  <div style="font-size:64px;">🌿</div>
+  <h1 style="color:white; font-size:24px; font-weight:700;">Arbres i Plantes</h1>
+  <div style="background:white; border-radius:16px; padding:28px 24px; width:min(320px, 90vw); box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <p style="color:var(--text-light); margin-bottom:16px; text-align:center; font-size:14px;">Introdueix la contrasenya per continuar</p>
+    <input type="password" id="loginInput" placeholder="Contrasenya" style="width:100%; padding:12px 14px; border:1.5px solid var(--green-mid); border-radius:10px; font-size:16px; margin-bottom:12px; box-sizing:border-box;" onkeydown="if(event.key==='Enter')checkPassword()">
+    <button onclick="checkPassword()" style="width:100%; padding:13px; background:var(--green); color:white; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer;">Entrar</button>
+    <p id="loginError" style="color:#e63946; font-size:13px; text-align:center; margin-top:10px; display:none;">Contrasenya incorrecta</p>
   </div>
 </div>
 
 <div id="toast"></div>
 
 <script>
-  const NOTION_DB = '82a45a640f0641d1a4cfeb95c47c8d12';
-  const CORS_PROXY = 'https://corsproxy.io/?';
+  const APP_PASSWORD = 'Plantes2026';
 
   let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, currentLloc = 'Nostre';
 
-  function openSettings() {
-    document.getElementById('anthropicKey').value = localStorage.getItem('anthropicKey') || '';
-    document.getElementById('notionToken').value  = localStorage.getItem('notionToken')  || '';
-    document.getElementById('imgbbKey').value     = localStorage.getItem('imgbbKey')     || '';
-    document.getElementById('settingsModal').classList.add('open');
-  }
-  function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
-  function saveSettings() {
-    const key = document.getElementById('anthropicKey').value.trim();
-    const token = document.getElementById('notionToken').value.trim();
-    const imgbb = document.getElementById('imgbbKey').value.trim();
-    if (key)   localStorage.setItem('anthropicKey', key);
-    if (token) localStorage.setItem('notionToken', token);
-    if (imgbb) localStorage.setItem('imgbbKey', imgbb);
-    closeSettings(); toast('✅ Configuració guardada');
+  function checkPassword() {
+    const val = document.getElementById('loginInput').value;
+    if (val === APP_PASSWORD) {
+      localStorage.setItem('appAuth', '1');
+      document.getElementById('loginScreen').style.display = 'none';
+    } else {
+      document.getElementById('loginError').style.display = 'block';
+      document.getElementById('loginInput').value = '';
+      document.getElementById('loginInput').focus();
+    }
   }
 
   function pickGallery() { const i = document.getElementById('fileInput'); i.removeAttribute('capture'); i.click(); }
@@ -339,9 +320,6 @@
   }
 
   async function identify() {
-    const anthropicKey = localStorage.getItem('anthropicKey');
-    if (!anthropicKey) { openSettings(); toast('⚠️ Cal configurar la clau API primer'); return; }
-
     document.getElementById('loading').style.display = 'block';
     document.getElementById('identifyBtn').disabled = true;
     hideResult(); showError('');
@@ -351,56 +329,27 @@
       const base64Data = base64.split(',')[1];
       const mediaType = currentFile.type || 'image/jpeg';
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      // Identifica via Vercel (clau al servidor)
+      const response = await fetch('/api/identify', {
         method: 'POST',
-        headers: {
-          'x-api-key': anthropicKey,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-opus-4-5',
-          max_tokens: 1024,
-          messages: [{ role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
-            { type: 'text', text: `Identifica la planta o arbre d'aquesta foto. Respon ÚNICAMENT en format JSON vàlid (sense cap text addicional, sense markdown), seguint exactament aquest esquema:\n{"nom":"nom comú en català","nom_castella":"nombre común en castellano","nom_cientific":"Nom científic","familia":"família botànica","descripcio":"descripció breu (2-3 frases)","habitat":"on sol créixer","curiositats":"una curiositat interessant","confianca":"Alta | Mitjana | Baixa"}\nSi no pots identificar la planta, retorna confianca "Baixa" i nom "Desconeguda".` }
-          ]}]
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageData: base64Data, mediaType }),
       });
-
-      if (!response.ok) { const err = await response.json(); throw new Error(err.error?.message || `Error ${response.status}`); }
-
-      const data = await response.json();
-      const text = data.content[0].text.trim();
-      let result;
-      try { result = JSON.parse(text); }
-      catch { const m = text.match(/\{[\s\S]*\}/); result = m ? JSON.parse(m[0]) : null; }
-      if (!result) throw new Error('Resposta de Claude no vàlida');
+      if (!response.ok) { const err = await response.json(); throw new Error(err.error || `Error ${response.status}`); }
+      const result = await response.json();
+      if (result.error) throw new Error(result.error);
       currentResult = result;
 
-      // Puja la foto a imgbb
-      const imgbbKey = localStorage.getItem('imgbbKey');
-      if (!imgbbKey) {
-        toast('⚠️ Configura la clau imgbb a ⚙️ per guardar fotos');
-      } else {
-        try {
-          const formData = new FormData();
-          formData.append('image', base64Data);
-          const imgRes = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
-            method: 'POST', body: formData
-          });
-          const imgData = await imgRes.json();
-          if (imgData.success) {
-            currentPhotoURL = imgData.data.url;
-            toast('📸 Foto pujada correctament!');
-          } else {
-            toast(`⚠️ Error imgbb: ${imgData.error?.message || 'clau incorrecta?'}`);
-          }
-        } catch (e) {
-          toast(`⚠️ Error pujant foto: ${e.message}`);
-        }
-      }
+      // Puja la foto via Vercel (clau imgbb al servidor)
+      try {
+        const upRes = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageData: base64Data }),
+        });
+        const upData = await upRes.json();
+        if (upData.url) { currentPhotoURL = upData.url; toast('📸 Foto pujada correctament!'); }
+      } catch (e) { /* Silenciós si no hi ha clau imgbb configurada */ }
 
       showResult(result);
     } catch (err) {
@@ -441,8 +390,6 @@
   }
 
   async function saveToNotion() {
-    const notionToken = localStorage.getItem('notionToken');
-    if (!notionToken) { openSettings(); toast('⚠️ Cal configurar el token de Notion primer'); return; }
     if (!currentResult) return;
 
     const btn = document.getElementById('saveBtn');
@@ -460,7 +407,7 @@
       };
       const response = await fetch(VERCEL_SAVE, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${notionToken}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       if (!response.ok) { const err = await response.json(); throw new Error(`Error Notion: ${JSON.stringify(err)}`); }
@@ -510,18 +457,13 @@
   const VERCEL_SAVE = 'https://arbres-plantes.vercel.app/api/save';
 
   async function loadCollection() {
-    const notionToken = localStorage.getItem('notionToken');
-    if (!notionToken) { openSettings(); return; }
-
     const grid = document.getElementById('collectionGrid');
     const loading = document.getElementById('collectionLoading');
     const empty = document.getElementById('collectionEmpty');
     grid.innerHTML = ''; loading.style.display = 'block'; empty.style.display = 'none';
 
     try {
-      const res = await fetch(VERCEL_API, {
-        headers: { Authorization: `Bearer ${notionToken}` }
-      });
+      const res = await fetch(VERCEL_API);
       const data = await res.json();
       loading.style.display = 'none';
       if (!res.ok) throw new Error(data.error || 'Error API');
@@ -627,7 +569,12 @@
   }
 
   window.onload = () => {
-    if (!localStorage.getItem('anthropicKey') || !localStorage.getItem('notionToken')) setTimeout(openSettings, 600);
+    if (!localStorage.getItem('appAuth')) {
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
+    document.getElementById('loginInput')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') checkPassword();
+    });
   };
 </script>
 </body>

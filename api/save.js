@@ -5,8 +5,8 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const notionToken = req.headers.authorization?.replace('Bearer ', '');
-  if (!notionToken) return res.status(401).json({ error: 'Falta el token de Notion' });
+  const notionToken = process.env.NOTION_TOKEN;
+  if (!notionToken) return res.status(500).json({ error: 'Token de Notion no configurat al servidor' });
 
   const NOTION_DB = '82a45a640f0641d1a4cfeb95c47c8d12';
 
