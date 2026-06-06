@@ -125,6 +125,9 @@
   .plant-card-body .meta { font-size: 11px; color: var(--text-light); display: flex; flex-direction: column; gap: 2px; }
   #collectionLoading { text-align: center; padding: 40px; color: var(--text-light); }
   #collectionEmpty { text-align: center; padding: 40px; color: var(--text-light); }
+  #llocPills { display: none; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .lloc-pill { padding: 6px 14px; border-radius: 20px; border: 2px solid var(--green-pale); background: white; color: var(--green); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .lloc-pill:hover, .lloc-pill.active { background: var(--green); color: white; border-color: var(--green); }
   .lloc-group { margin-bottom: 24px; }
   .lloc-group-header { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--green); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--green-pale); }
   .lloc-group-count { font-size: 12px; font-weight: 500; background: var(--green-pale); color: var(--green); border-radius: 20px; padding: 2px 8px; }
@@ -207,6 +210,7 @@
 </div>
 
 <div class="tab-content" id="tab-colleccio">
+  <div id="llocPills"></div>
   <div id="collectionLoading" style="display:none"><div class="spinner" style="margin:30px auto"></div></div>
   <div id="collectionEmpty" style="display:none">🌱 Encara no hi ha plantes guardades</div>
   <div id="collectionGrid"></div>
@@ -556,10 +560,34 @@
       ...LLOC_ORDER.filter(l => grups[l]),
       ...Object.keys(grups).filter(l => !LLOC_ORDER.includes(l)).sort()
     ];
+
+    // Generar pills
+    const pillsContainer = document.getElementById('llocPills');
+    pillsContainer.innerHTML = '';
+    if (llocKeys.length > 1) {
+      pillsContainer.style.display = 'flex';
+      llocKeys.forEach((lloc, i) => {
+        const icon = LLOC_ICONS[lloc] || '✏️';
+        const pill = document.createElement('button');
+        pill.className = 'lloc-pill' + (i === 0 ? ' active' : '');
+        pill.textContent = `${icon} ${lloc}`;
+        pill.onclick = () => {
+          document.querySelectorAll('.lloc-pill').forEach(p => p.classList.remove('active'));
+          pill.classList.add('active');
+          const target = document.getElementById('grup-' + lloc.replace(/\s+/g, '-'));
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+        pillsContainer.appendChild(pill);
+      });
+    } else {
+      pillsContainer.style.display = 'none';
+    }
+
     for (const lloc of llocKeys) {
       const items = grups[lloc];
       const groupDiv = document.createElement('div');
       groupDiv.className = 'lloc-group';
+      groupDiv.id = 'grup-' + lloc.replace(/\s+/g, '-');
       const icon = LLOC_ICONS[lloc] || '✏️';
       groupDiv.innerHTML = `<div class="lloc-group-header">${icon} ${lloc} <span class="lloc-group-count">${items.length}</span></div>`;
       const gridDiv = document.createElement('div');
