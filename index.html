@@ -534,7 +534,7 @@
       groupDiv.innerHTML = `<div class="lloc-group-header">${icon} ${lloc} <span class="lloc-group-count">${items.length}</span></div>`;
       const gridDiv = document.createElement('div');
       gridDiv.className = 'collection-grid';
-      items.forEach(p => renderCard(gridDiv, p));
+      items.sort((a, b) => (a.nom || '').localeCompare(b.nom || '', 'ca')).forEach(p => renderCard(gridDiv, p));
       groupDiv.appendChild(gridDiv);
       container.appendChild(groupDiv);
     }
