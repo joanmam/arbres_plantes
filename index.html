@@ -125,7 +125,8 @@
   .plant-card-body .meta { font-size: 11px; color: var(--text-light); display: flex; flex-direction: column; gap: 2px; }
   #collectionLoading { text-align: center; padding: 40px; color: var(--text-light); }
   #collectionEmpty { text-align: center; padding: 40px; color: var(--text-light); }
-  #llocPills { display: none; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; position: sticky; top: 0; z-index: 9; background: var(--bg); padding: 10px 0; }
+  #llocPills { display: none; gap: 8px; flex-wrap: wrap; position: fixed; top: 56px; left: 0; right: 0; z-index: 9; background: var(--bg); padding: 8px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  #llocPillsSpacer { display: none; height: 52px; }
   .lloc-pill { padding: 6px 14px; border-radius: 20px; border: 2px solid var(--green-pale); background: white; color: var(--green); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
   .lloc-pill:hover, .lloc-pill.active { background: var(--green); color: white; border-color: var(--green); }
   .lloc-group { margin-bottom: 24px; }
@@ -211,6 +212,7 @@
 
 <div class="tab-content" id="tab-colleccio">
   <div id="llocPills"></div>
+  <div id="llocPillsSpacer"></div>
   <div id="collectionLoading" style="display:none"><div class="spinner" style="margin:30px auto"></div></div>
   <div id="collectionEmpty" style="display:none">🌱 Encara no hi ha plantes guardades</div>
   <div id="collectionGrid"></div>
@@ -527,6 +529,7 @@
     pillsContainer.innerHTML = '';
     if (llocKeys.length > 1) {
       pillsContainer.style.display = 'flex';
+      document.getElementById('llocPillsSpacer').style.display = 'block';
       llocKeys.forEach((lloc, i) => {
         const icon = LLOC_ICONS[lloc] || '✏️';
         const pill = document.createElement('button');
@@ -542,6 +545,7 @@
       });
     } else {
       pillsContainer.style.display = 'none';
+      document.getElementById('llocPillsSpacer').style.display = 'none';
     }
 
     for (const lloc of llocKeys) {
