@@ -25,6 +25,21 @@
   #settingsBtn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 18px; }
 
   main { max-width: 600px; margin: 0 auto; padding: 20px; }
+  @media (min-width: 768px) {
+    #tab-colleccio {
+      position: relative;
+      left: 50%;
+      right: 50%;
+      margin-left: -50vw;
+      margin-right: -50vw;
+      width: 100vw;
+      padding: 0 24px;
+      box-sizing: border-box;
+    }
+    #tab-colleccio .collection-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    #tab-colleccio .lloc-group-header { max-width: 1400px; margin-left: auto; margin-right: auto; }
+    #tab-colleccio #collectionGrid { max-width: 1400px; margin: 0 auto; }
+  }
 
   .upload-zone { border: 2px dashed var(--green-mid); border-radius: var(--radius); padding: 40px 20px; text-align: center; background: white; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; }
   .upload-zone:hover, .upload-zone.drag { border-color: var(--green); background: var(--green-pale); }
