@@ -700,7 +700,7 @@
   }
 
   function renderCard(grid, p) {
-    const dataFmt = p.data ? new Date(p.data).toLocaleDateString('ca-ES', { day:'2-digit', month:'short', year:'numeric' }) : '';
+    const dataFmt = p.data ? new Date(p.data).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', year:'numeric' }) : '';
     const card = document.createElement('div');
     card.className = `plant-card conf-card-${p.confianca === 'Alta' ? 'alta' : 'altres'}`;
     if (p.notion_url) {
@@ -716,7 +716,7 @@
         <div class="meta">
           ${(p.localitzacions && p.localitzacions.length > 0)
             ? p.localitzacions.map(l => {
-                const df = l.data ? new Date(l.data).toLocaleDateString('ca-ES', { day:'2-digit', month:'short', year:'numeric' }) : '';
+                const df = l.data ? new Date(l.data).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', year:'numeric' }) : '';
                 return `<span>${l.ubicacio ? `📍 ${l.ubicacio}` : ''}${l.ubicacio && df ? ' · ' : ''}${df ? `📅 ${df}` : ''}</span>`;
               }).join('')
             : `${p.ubicacio ? `<span>📍 ${p.ubicacio}</span>` : ''}${dataFmt ? `<span>📅 ${dataFmt}</span>` : ''}`
