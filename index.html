@@ -73,12 +73,7 @@
   .btn-notion { background: #191919; color: white; }
   .btn-notion:hover { background: #333; }
 
-  #llocContainer { margin-bottom: 16px; background: white; border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); display: none; }
-  #llocContainer label { font-size: 13px; font-weight: 600; color: var(--text-light); display: block; margin-bottom: 8px; }
-  #llocSelect { width: 100%; padding: 10px 12px; border: 1.5px solid var(--green-mid); border-radius: 10px; font-size: 15px; font-weight: 600; color: var(--text); background: var(--bg); appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232d6a4f' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; }
-  #llocSelect:focus { outline: none; border-color: var(--green); }
-  #llocAltresInput { margin-top: 10px; width: 100%; padding: 10px 12px; border: 1.5px solid var(--green-mid); border-radius: 10px; font-size: 15px; color: var(--text); background: var(--bg); display: none; }
-  #llocAltresInput:focus { outline: none; border-color: var(--green); }
+
 
   #previewContainer { margin-bottom: 20px; display: none; position: relative; }
   #preview { width: 100%; max-height: 300px; object-fit: cover; border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -190,16 +185,6 @@
 
   <div id="locInfo"></div>
 
-  <div id="llocContainer">
-    <label>📍 Lloc</label>
-    <select id="llocSelect" onchange="onLlocChange()">
-      <option value="Nostre">🏡 Nostre</option>
-      <option value="Iaia">👵 Iaia</option>
-      <option value="Altres">✏️ Altres...</option>
-    </select>
-    <input type="text" id="llocAltresInput" placeholder="Escriu el lloc..." oninput="updateLlocAltres()">
-  </div>
-
   <button class="btn btn-primary" id="identifyBtn" onclick="identify()" style="margin-bottom:16px;width:100%" disabled>
     🔍 Identificar planta
   </button>
@@ -263,7 +248,7 @@
 <script>
   const APP_PASSWORD = 'Plantes2026';
 
-  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, currentLloc = 'Nostre', gpsPromise = null;
+  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, gpsPromise = null;
 
   function checkPassword() {
     const val = document.getElementById('loginInput').value;
@@ -280,18 +265,6 @@
   function pickGallery() { const i = document.getElementById('fileInput'); i.removeAttribute('capture'); i.click(); }
   function openCamera()  { const i = document.getElementById('fileInput'); i.setAttribute('capture', 'environment'); i.click(); }
 
-  function onLlocChange() {
-    const sel = document.getElementById('llocSelect').value;
-    const altresInput = document.getElementById('llocAltresInput');
-    altresInput.style.display = sel === 'Altres' ? 'block' : 'none';
-    currentLloc = sel === 'Altres' ? (altresInput.value.trim() || 'Altres') : sel;
-  }
-  function updateLlocAltres() {
-    const val = document.getElementById('llocAltresInput').value.trim();
-    currentLloc = val || 'Altres';
-  }
-  function getLloc() { return currentLloc || 'Nostre'; }
-
   function handleFile(file) {
     if (!file) return;
     currentFile = file;
@@ -301,7 +274,6 @@
       document.getElementById('previewContainer').style.display = 'block';
       document.getElementById('uploadZone').style.display = 'none';
       document.getElementById('identifyBtn').disabled = false;
-      document.getElementById('llocContainer').style.display = 'block';
     };
     reader.readAsDataURL(file);
     currentPhotoURL = null;
@@ -317,7 +289,6 @@
     document.getElementById('previewContainer').style.display = 'none';
     document.getElementById('uploadZone').style.display = 'block';
     document.getElementById('identifyBtn').disabled = true;
-    document.getElementById('llocContainer').style.display = 'none';
     document.getElementById('fileInput').value = '';
     hideResult();
   }
@@ -468,7 +439,6 @@
         latitud:  currentLocation?.lat ?? null,
         longitud: currentLocation?.lon ?? null,
         foto_url: currentPhotoURL || '',
-        lloc: getLloc(),
       };
       const response = await fetch(VERCEL_SAVE, {
         method: 'POST',
@@ -516,7 +486,6 @@
         lat: currentLocation?.lat ?? null,
         lon: currentLocation?.lon ?? null,
         ubicacio: currentLocation?.nom || '',
-        lloc: getLloc(),
         data: new Date().toISOString().split('T')[0],
       });
       savePendents(pendents);
@@ -561,7 +530,6 @@
     const blob = await res.blob();
     currentFile = new File([blob], `pendent_${id}.jpg`, { type: 'image/jpeg' });
     currentLocation = (p.lat != null) ? { lat: p.lat, lon: p.lon, nom: p.ubicacio } : null;
-    currentLloc = p.lloc || 'Nostre';
     gpsPromise = Promise.resolve();
 
     // Mostra la previsualització
@@ -569,12 +537,6 @@
     document.getElementById('previewContainer').style.display = 'block';
     document.getElementById('uploadZone').style.display = 'none';
     document.getElementById('identifyBtn').disabled = false;
-    document.getElementById('llocContainer').style.display = 'block';
-    document.getElementById('llocSelect').value = ['Nostre','Iaia'].includes(p.lloc) ? p.lloc : 'Altres';
-    if (!['Nostre','Iaia'].includes(p.lloc)) {
-      document.getElementById('llocAltresInput').style.display = 'block';
-      document.getElementById('llocAltresInput').value = p.lloc;
-    }
     if (currentLocation) {
       const el = document.getElementById('locInfo');
       el.style.display = 'block';
