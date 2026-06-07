@@ -383,7 +383,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageData: base64Data, mediaType }),
       });
-      if (!response.ok) { const err = await response.json(); throw new Error(err.error || `Error ${response.status}`); }
+      if (!response.ok) {
+        let errMsg = `Error ${response.status}`;
+        try { const err = await response.json(); errMsg = err.error || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
       const result = await response.json();
       if (result.error) throw new Error(result.error);
       currentResult = result;
@@ -435,10 +439,15 @@
     const el = document.getElementById('error');
     el.style.display = msg ? 'block' : 'none';
     if (msg) {
-      el.innerHTML = `⚠️ ${msg}
-        <br><button onclick="desarPendent()" style="margin-top:10px;padding:8px 16px;background:var(--green);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;width:100%">
-          💾 Desa per més tard (conserva GPS i lloc)
-        </button>`;
+      el.textContent = '';
+      const txt = document.createTextNode('⚠️ ' + msg);
+      el.appendChild(txt);
+      const btn = document.createElement('button');
+      btn.textContent = '💾 Desa per més tard (conserva GPS i lloc)';
+      btn.style.cssText = 'display:block;margin-top:10px;padding:8px 16px;background:var(--green);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;width:100%';
+      btn.onclick = desarPendent;
+      el.appendChild(document.createElement('br'));
+      el.appendChild(btn);
     }
   }
 
