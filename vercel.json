@@ -1,10 +1,12 @@
 {
   "functions": {
-    "api/identify.js": {
-      "maxDuration": 30
-    },
-    "api/upload.js": {
-      "maxDuration": 30
+    "api/identify.js": { "maxDuration": 30 },
+    "api/upload.js": { "maxDuration": 30 }
+  },
+  "headers": [
+    {
+      "source": "/",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     }
-  }
+  ]
 }
