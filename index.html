@@ -377,6 +377,8 @@
     try {
       const base64Data = await resizeImage(currentFile, 1024);
       const mediaType = 'image/jpeg';
+      const mida = Math.round(base64Data.length / 1024);
+      showError(`Debug: imatge ${mida}KB`);
 
       // Identifica via Vercel (clau al servidor)
       const response = await fetch('/api/identify', {
