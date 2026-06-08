@@ -73,12 +73,6 @@
   .btn-notion { background: #191919; color: white; }
   .btn-notion:hover { background: #333; }
 
-  #llocContainer { margin-bottom: 16px; background: white; border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); display: none; }
-  #llocContainer label { font-size: 13px; font-weight: 600; color: var(--text-light); display: block; margin-bottom: 8px; }
-  #llocSelect { width: 100%; padding: 10px 12px; border: 1.5px solid var(--green-mid); border-radius: 10px; font-size: 15px; font-weight: 600; color: var(--text); background: var(--bg); appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232d6a4f' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; }
-  #llocSelect:focus { outline: none; border-color: var(--green); }
-  #llocAltresInput { margin-top: 10px; width: 100%; padding: 10px 12px; border: 1.5px solid var(--green-mid); border-radius: 10px; font-size: 15px; color: var(--text); background: var(--bg); display: none; }
-  #llocAltresInput:focus { outline: none; border-color: var(--green); }
 
   #previewContainer { margin-bottom: 20px; display: none; position: relative; }
   #preview { width: 100%; max-height: 300px; object-fit: cover; border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -149,6 +143,10 @@
   .lloc-group-header { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--green); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--green-pale); }
   .lloc-group-count { font-size: 12px; font-weight: 500; background: var(--green-pale); color: var(--green); border-radius: 20px; padding: 2px 8px; }
 
+  #llocTriar { display: none; margin-bottom: 16px; }
+  .lloc-btn { padding: 7px 16px; border-radius: 20px; border: 2px solid var(--green-pale); background: white; color: var(--green); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .lloc-btn.active { background: var(--green); color: white; border-color: var(--green); }
+
   @media (max-width: 480px) { main { padding: 16px; } .result-header h2 { font-size: 19px; } .collection-grid { grid-template-columns: 1fr 1fr; gap: 8px; } }
 </style>
 </head>
@@ -190,14 +188,17 @@
 
   <div id="locInfo"></div>
 
-  <div id="llocContainer">
-    <label>📍 Lloc</label>
-    <select id="llocSelect" onchange="onLlocChange()">
-      <option value="Nostre">🏡 Nostre</option>
-      <option value="Iaia">👵 Iaia</option>
-      <option value="Altres">✏️ Altres...</option>
-    </select>
-    <input type="text" id="llocAltresInput" placeholder="Escriu el lloc..." oninput="updateLlocAltres()">
+  <div id="llocTriar">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="lloc-btn active" onclick="triarLloc('Nostre',this)">🏡 Nostre</button>
+      <button class="lloc-btn" onclick="triarLloc('Iaia',this)">👵 Iaia</button>
+      <button class="lloc-btn" onclick="triarLloc('Altres',this)">✏️ Altres</button>
+    </div>
+    <div id="altresInput" style="display:none;margin-top:8px">
+      <input type="text" id="altresText" placeholder="Nom del lloc..."
+             style="width:100%;padding:8px 12px;border:1.5px solid var(--green-mid);border-radius:8px;font-size:14px"
+             oninput="if(this.value) currentLloc = this.value">
+    </div>
   </div>
 
   <button class="btn btn-primary" id="identifyBtn" onclick="identify()" style="margin-bottom:16px;width:100%" disabled>
@@ -263,7 +264,8 @@
 <script>
   const APP_PASSWORD = 'Plantes2026';
 
-  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, currentLloc = 'Nostre', gpsPromise = null;
+  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, gpsPromise = null;
+  let currentLloc = 'Nostre', currentPendentPageId = null, cachedPendents = [];
 
   function checkPassword() {
     const val = document.getElementById('loginInput').value;
@@ -280,18 +282,6 @@
   function pickGallery() { const i = document.getElementById('fileInput'); i.removeAttribute('capture'); i.click(); }
   function openCamera()  { const i = document.getElementById('fileInput'); i.setAttribute('capture', 'environment'); i.click(); }
 
-  function onLlocChange() {
-    const sel = document.getElementById('llocSelect').value;
-    const altresInput = document.getElementById('llocAltresInput');
-    altresInput.style.display = sel === 'Altres' ? 'block' : 'none';
-    currentLloc = sel === 'Altres' ? (altresInput.value.trim() || 'Altres') : sel;
-  }
-  function updateLlocAltres() {
-    const val = document.getElementById('llocAltresInput').value.trim();
-    currentLloc = val || 'Altres';
-  }
-  function getLloc() { return currentLloc || 'Nostre'; }
-
   function handleFile(file) {
     if (!file) return;
     currentFile = file;
@@ -301,7 +291,7 @@
       document.getElementById('previewContainer').style.display = 'block';
       document.getElementById('uploadZone').style.display = 'none';
       document.getElementById('identifyBtn').disabled = false;
-      document.getElementById('llocContainer').style.display = 'block';
+      document.getElementById('llocTriar').style.display = 'block';
     };
     reader.readAsDataURL(file);
     currentPhotoURL = null;
@@ -313,13 +303,26 @@
     if (file && file.type.startsWith('image/')) handleFile(file);
   }
   function removePhoto() {
-    currentFile = null;
+    currentFile = null; currentPendentPageId = null;
     document.getElementById('previewContainer').style.display = 'none';
     document.getElementById('uploadZone').style.display = 'block';
     document.getElementById('identifyBtn').disabled = true;
-    document.getElementById('llocContainer').style.display = 'none';
     document.getElementById('fileInput').value = '';
+    document.getElementById('llocTriar').style.display = 'none';
+    currentLloc = 'Nostre';
+    document.querySelectorAll('.lloc-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+    document.getElementById('altresInput').style.display = 'none';
+    document.getElementById('altresText').value = '';
     hideResult();
+  }
+
+  function triarLloc(lloc, btn) {
+    document.querySelectorAll('.lloc-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentLloc = lloc;
+    const altresInput = document.getElementById('altresInput');
+    altresInput.style.display = lloc === 'Altres' ? 'block' : 'none';
+    if (lloc !== 'Altres') { document.getElementById('altresText').value = ''; }
   }
 
   function getLocation() {
@@ -461,30 +464,43 @@
     btn.innerHTML = '⏳ Guardant...';
 
     try {
-      const payload = {
-        ...currentResult,
-        data: new Date().toISOString().split('T')[0],
-        ubicacio: currentLocation?.nom || '',
-        latitud:  currentLocation?.lat ?? null,
-        longitud: currentLocation?.lon ?? null,
-        foto_url: currentPhotoURL || '',
-        lloc: getLloc(),
-      };
-      const response = await fetch(VERCEL_SAVE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) { const err = await response.json(); throw new Error(`Error Notion: ${JSON.stringify(err)}`); }
+      if (currentPendentPageId) {
+        // Actualitza el pendent existent a Notion
+        const r = await fetch('/api/pendents', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pageId: currentPendentPageId, ...currentResult, foto_url: currentPhotoURL || '' }),
+        });
+        if (!r.ok) { const e = await r.json(); throw new Error(`Error Notion: ${JSON.stringify(e)}`); }
+        cachedPendents = cachedPendents.filter(p => p.id !== currentPendentPageId);
+        currentPendentPageId = null;
+        updatePendentsBadge();
+      } else {
+        // Crea una nova entrada a Notion
+        const payload = {
+          ...currentResult,
+          data: new Date().toISOString().split('T')[0],
+          ubicacio: currentLocation?.nom || '',
+          latitud:  currentLocation?.lat ?? null,
+          longitud: currentLocation?.lon ?? null,
+          lloc:     currentLloc || 'Nostre',
+          foto_url: currentPhotoURL || '',
+        };
+        const response = await fetch(VERCEL_SAVE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) { const err = await response.json(); throw new Error(`Error Notion: ${JSON.stringify(err)}`); }
 
-      // Desa localment per a la col·lecció
-      savePlantLocally({
-        nom: currentResult.nom,
-        nom_cientific: currentResult.nom_cientific,
-        ubicacio: currentLocation?.nom || '',
-        data: new Date().toISOString().split('T')[0],
-        foto_url: currentPhotoURL || '',
-      });
+        savePlantLocally({
+          nom: currentResult.nom,
+          nom_cientific: currentResult.nom_cientific,
+          ubicacio: currentLocation?.nom || '',
+          data: new Date().toISOString().split('T')[0],
+          foto_url: currentPhotoURL || '',
+        });
+      }
 
       btn.innerHTML = '✅ Guardat a Notion!';
       toast('✅ Planta guardada a Notion!');
@@ -494,106 +510,141 @@
     }
   }
 
-  // ── Pendents ──────────────────────────────────────────────────────────────
-  function getPendents() { try { return JSON.parse(localStorage.getItem('pendents') || '[]'); } catch { return []; } }
-  function savePendents(arr) { localStorage.setItem('pendents', JSON.stringify(arr)); }
-
+  // ── Pendents (Notion) ─────────────────────────────────────────────────────
   function updatePendentsBadge() {
-    const n = getPendents().length;
+    const n = cachedPendents.length;
     const btn = document.getElementById('pendentsBtn');
     btn.style.display = n > 0 ? 'inline-flex' : 'none';
     document.getElementById('pendentsBadge').textContent = n;
   }
 
-  function desarPendent() {
-    if (!currentFile) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const pendents = getPendents();
-      pendents.unshift({
-        id: Date.now(),
-        imageData: e.target.result,
-        lat: currentLocation?.lat ?? null,
-        lon: currentLocation?.lon ?? null,
-        ubicacio: currentLocation?.nom || '',
-        lloc: getLloc(),
-        data: new Date().toISOString().split('T')[0],
-      });
-      savePendents(pendents);
+  async function fetchPendentsCount() {
+    try {
+      const r = await fetch('/api/pendents');
+      const d = await r.json();
+      cachedPendents = d.pendents || [];
       updatePendentsBadge();
-      toast('💾 Desat per més tard amb GPS i lloc!');
-    };
-    reader.readAsDataURL(currentFile);
+    } catch { /* silenciós */ }
   }
 
-  function openPendents() {
-    const pendents = getPendents();
+  async function desarPendent() {
+    if (!currentFile) return;
+    const errorEl = document.getElementById('error');
+    const btn = errorEl ? errorEl.querySelector('button') : null;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Pujant foto...'; }
+    try {
+      let fotoUrl = currentPhotoURL;
+      if (!fotoUrl) {
+        const base64Data = await resizeImage(currentFile, 1024);
+        const upRes = await fetch('/api/upload', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageData: base64Data }),
+        });
+        const upData = await upRes.json();
+        fotoUrl = upData.url || '';
+        if (fotoUrl) currentPhotoURL = fotoUrl;
+      }
+      if (!fotoUrl) throw new Error("No s'ha pogut pujar la foto. Comprova la configuració d'imgbb.");
+      const r = await fetch('/api/pendents', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          foto_url: fotoUrl,
+          ubicacio: currentLocation?.nom || '',
+          lat: currentLocation?.lat ?? null,
+          lon: currentLocation?.lon ?? null,
+          lloc: currentLloc || 'Nostre',
+          data: new Date().toISOString().split('T')[0],
+        }),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Error Notion'); }
+      await fetchPendentsCount();
+      toast('💾 Desat a Notion! Podràs identificar-ho des de qualsevol dispositiu.');
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Desa per més tard'; }
+    } catch(e) {
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Desa per més tard'; }
+      toast('⚠️ ' + e.message);
+    }
+  }
+
+  async function openPendents() {
     const list = document.getElementById('pendentsList');
-    if (pendents.length === 0) { list.innerHTML = '<p style="color:var(--text-light);text-align:center">No hi ha identificacions pendents</p>'; }
-    else {
-      list.innerHTML = pendents.map(p => `
+    list.innerHTML = '<p style="color:var(--text-light);text-align:center">Carregant...</p>';
+    document.getElementById('pendentsModal').classList.add('open');
+    try {
+      const r = await fetch('/api/pendents');
+      const d = await r.json();
+      cachedPendents = d.pendents || [];
+      updatePendentsBadge();
+      if (cachedPendents.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-light);text-align:center">No hi ha identificacions pendents</p>';
+        return;
+      }
+      list.innerHTML = cachedPendents.map(p => `
         <div class="pendent-item" id="pendent-${p.id}">
-          <img src="${p.imageData}" alt="pendent">
+          ${p.foto_url
+            ? `<img src="${p.foto_url}" alt="pendent">`
+            : `<div style="width:60px;height:60px;background:var(--green-pale);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:28px">🌿</div>`}
           <div class="pendent-item-info">
             <strong>${p.lloc || 'Sense lloc'}</strong><br>
             ${p.ubicacio ? `📍 ${p.ubicacio}<br>` : ''}
             📅 ${p.data}
           </div>
           <div class="pendent-item-actions">
-            <button class="btn-pendent btn-pendent-retry" onclick="reintentarPendent(${p.id})">🔍 Identificar</button>
-            <button class="btn-pendent btn-pendent-del" onclick="eliminarPendent(${p.id})">✕ Eliminar</button>
+            <button class="btn-pendent btn-pendent-retry" onclick="reintentarPendent('${p.id}')">🔍 Identificar</button>
+            <button class="btn-pendent btn-pendent-del" onclick="arxivarPendent('${p.id}')">✕ Eliminar</button>
           </div>
         </div>`).join('');
+    } catch(e) {
+      list.innerHTML = `<p style="color:#e63946;text-align:center">Error: ${e.message}</p>`;
     }
-    document.getElementById('pendentsModal').classList.add('open');
   }
 
   function closePendents() { document.getElementById('pendentsModal').classList.remove('open'); }
 
   async function reintentarPendent(id) {
-    const pendents = getPendents();
-    const p = pendents.find(x => x.id === id);
-    if (!p) return;
+    const p = cachedPendents.find(x => x.id === id);
+    if (!p || !p.foto_url) { toast("⚠️ No hi ha foto per identificar"); return; }
     closePendents();
-
-    // Restaura el context
-    const res = await fetch(p.imageData);
-    const blob = await res.blob();
-    currentFile = new File([blob], `pendent_${id}.jpg`, { type: 'image/jpeg' });
+    currentPendentPageId = id;
+    try {
+      const res = await fetch(p.foto_url);
+      const blob = await res.blob();
+      currentFile = new File([blob], 'pendent.jpg', { type: 'image/jpeg' });
+    } catch {
+      toast("⚠️ No s'ha pogut carregar la foto");
+      currentPendentPageId = null; return;
+    }
     currentLocation = (p.lat != null) ? { lat: p.lat, lon: p.lon, nom: p.ubicacio } : null;
     currentLloc = p.lloc || 'Nostre';
+    currentPhotoURL = p.foto_url;
     gpsPromise = Promise.resolve();
 
-    // Mostra la previsualització
-    document.getElementById('preview').src = p.imageData;
+    document.getElementById('preview').src = p.foto_url;
     document.getElementById('previewContainer').style.display = 'block';
     document.getElementById('uploadZone').style.display = 'none';
     document.getElementById('identifyBtn').disabled = false;
-    document.getElementById('llocContainer').style.display = 'block';
-    document.getElementById('llocSelect').value = ['Nostre','Iaia'].includes(p.lloc) ? p.lloc : 'Altres';
-    if (!['Nostre','Iaia'].includes(p.lloc)) {
-      document.getElementById('llocAltresInput').style.display = 'block';
-      document.getElementById('llocAltresInput').value = p.lloc;
-    }
+    document.getElementById('llocTriar').style.display = 'block';
+    document.querySelectorAll('.lloc-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().includes(currentLloc)));
     if (currentLocation) {
       const el = document.getElementById('locInfo');
-      el.style.display = 'block';
-      el.innerHTML = `📍 ${currentLocation.nom}`;
+      el.style.display = 'block'; el.innerHTML = `📍 ${currentLocation.nom}`;
     }
-
-    // Identifica directament
+    switchTab('identificar');
     await identify();
-
-    // Si ha funcionat, elimina el pendent
-    if (currentResult) eliminarPendent(id);
   }
 
-  function eliminarPendent(id) {
-    const pendents = getPendents().filter(p => p.id !== id);
-    savePendents(pendents);
-    updatePendentsBadge();
-    const el = document.getElementById(`pendent-${id}`);
-    if (el) el.remove();
+  async function arxivarPendent(id) {
+    try {
+      const r = await fetch('/api/pendents', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pageId: id, action: 'arxivar' }),
+      });
+      if (!r.ok) throw new Error('Error eliminant');
+      cachedPendents = cachedPendents.filter(p => p.id !== id);
+      updatePendentsBadge();
+      const el = document.getElementById(`pendent-${id}`);
+      if (el) el.remove();
+    } catch(e) { toast('⚠️ ' + e.message); }
   }
 
   function toast(msg) {
@@ -745,7 +796,7 @@
     document.getElementById('loginInput')?.addEventListener('keydown', e => {
       if (e.key === 'Enter') checkPassword();
     });
-    updatePendentsBadge();
+    fetchPendentsCount();
   };
 </script>
 </body>

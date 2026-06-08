@@ -27,6 +27,7 @@ export default async function handler(req, res) {
     if (planta.latitud  != null) properties['Latitud']  = { number: Number(planta.latitud) };
     if (planta.longitud != null) properties['Longitud'] = { number: Number(planta.longitud) };
     if (planta.lloc) properties['Lloc'] = { select: { name: String(planta.lloc) } };
+    properties['Estat'] = { select: { name: 'Identificada' } };
     const fotoUrl = String(planta.foto_url || '').trim();
     if (fotoUrl.startsWith('http')) {
       properties['Foto URL'] = {

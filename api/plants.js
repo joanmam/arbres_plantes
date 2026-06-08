@@ -16,7 +16,16 @@ export default async function handler(req, res) {
       const r = await fetch(`https://api.notion.com/v1/databases/${NOTION_DB}/query`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${notionToken}`, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ page_size: 100, sorts: [{ timestamp: 'created_time', direction: 'descending' }] }),
+        body: JSON.stringify({
+          page_size: 100,
+          sorts: [{ timestamp: 'created_time', direction: 'descending' }],
+          filter: {
+            or: [
+              { property: 'Estat', select: { equals: 'Identificada' } },
+              { property: 'Estat', select: { is_empty: true } },
+            ],
+          },
+        }),
       });
       const d = await r.json();
       if (!r.ok) return res.status(r.status).json(d);
