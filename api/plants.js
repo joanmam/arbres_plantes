@@ -9,6 +9,12 @@ function autoritzat(req) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+// URL de la foto: externa (imgbb, fotos antigues) o fitxer de Notion (caduca en 1 h, es renova a cada lectura)
+function fotoDe(prop) {
+  const f = prop?.files?.[0];
+  return f?.external?.url || f?.file?.url || prop?.url || '';
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -51,7 +57,7 @@ export default async function handler(req, res) {
           notion_url:    page.url || '',
           ubicacio:      p['Ubicació']?.rich_text?.[0]?.plain_text || '',
           data:          p['Data']?.date?.start || page.created_time?.split('T')[0] || '',
-          foto_url:      p['Foto URL']?.files?.[0]?.external?.url || p['Foto URL']?.url || '',
+          foto_url:      fotoDe(p['Foto URL']),
           lloc:          p['Lloc']?.select?.name || '',
         };
       });
@@ -89,7 +95,11 @@ export default async function handler(req, res) {
       if (planta.ubicacio) properties['Ubicació'] = { rich_text: [{ text: { content: String(planta.ubicacio) } }] };
       if (planta.latitud  != null) properties['Latitud']  = { number: Number(planta.latitud) };
       if (planta.longitud != null) properties['Longitud'] = { number: Number(planta.longitud) };
-      if (planta.foto_url) properties['Foto URL'] = { url: String(planta.foto_url) };
+    if (planta.foto_upload_id) {
+      properties['Foto URL'] = { files: [{ type: 'file_upload', file_upload: { id: String(planta.foto_upload_id) }, name: 'foto.jpg' }] };
+    } else if (String(planta.foto_url || '').trim().startsWith('http')) {
+      properties['Foto URL'] = { files: [{ name: 'foto', type: 'external', external: { url: String(planta.foto_url).trim() } }] };
+    }
 
       const r = await fetch('https://api.notion.com/v1/pages', {
         method: 'POST',

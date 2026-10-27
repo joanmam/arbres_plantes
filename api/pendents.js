@@ -9,6 +9,12 @@ function autoritzat(req) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+// URL de la foto: externa (imgbb, fotos antigues) o fitxer de Notion (caduca en 1 h, es renova a cada lectura)
+function fotoDe(prop) {
+  const f = prop?.files?.[0];
+  return f?.external?.url || f?.file?.url || prop?.url || '';
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
@@ -27,6 +33,20 @@ export default async function handler(req, res) {
 
   try {
     // ── GET: llistar pendents ────────────────────────────────────────────────
+    // ── GET ?imatge=<pageId>: retorna la foto del pendent (evita problemes de CORS) ──
+    if (req.method === 'GET' && req.query?.imatge) {
+      const pr = await fetch(`https://api.notion.com/v1/pages/${req.query.imatge}`, { headers });
+      const page = await pr.json();
+      if (!pr.ok) return res.status(pr.status).json(page);
+      const url = fotoDe(page.properties?.['Foto URL']);
+      if (!url) return res.status(404).json({ error: 'Sense foto' });
+      const ir = await fetch(url);
+      if (!ir.ok) return res.status(502).json({ error: `No s'ha pogut baixar la foto (${ir.status})` });
+      res.setHeader('Content-Type', ir.headers.get('content-type') || 'image/jpeg');
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).send(Buffer.from(await ir.arrayBuffer()));
+    }
+
     if (req.method === 'GET') {
       const r = await fetch(`https://api.notion.com/v1/databases/${NOTION_DB}/query`, {
         method: 'POST', headers,
@@ -39,7 +59,7 @@ export default async function handler(req, res) {
       if (!r.ok) return res.status(r.status).json(d);
       const pendents = d.results.map(page => ({
         id:       page.id,
-        foto_url: page.properties['Foto URL']?.files?.[0]?.external?.url || '',
+        foto_url: fotoDe(page.properties['Foto URL']),
         ubicacio: page.properties['Ubicació']?.rich_text?.[0]?.plain_text || '',
         lat:      page.properties['Latitud']?.number ?? null,
         lon:      page.properties['Longitud']?.number ?? null,
@@ -61,11 +81,10 @@ export default async function handler(req, res) {
       if (p.lat != null) properties['Latitud'] = { number: Number(p.lat) };
       if (p.lon != null) properties['Longitud'] = { number: Number(p.lon) };
       if (p.lloc) properties['Lloc'] = { select: { name: String(p.lloc) } };
-      if (p.foto_url) {
-        const url = String(p.foto_url).trim();
-        if (url.startsWith('http')) {
-          properties['Foto URL'] = { files: [{ name: 'foto', type: 'external', external: { url } }] };
-        }
+      if (p.foto_upload_id) {
+        properties['Foto URL'] = { files: [{ type: 'file_upload', file_upload: { id: String(p.foto_upload_id) }, name: 'foto.jpg' }] };
+      } else if (String(p.foto_url || '').trim().startsWith('http')) {
+        properties['Foto URL'] = { files: [{ name: 'foto', type: 'external', external: { url: String(p.foto_url).trim() } }] };
       }
       const r = await fetch('https://api.notion.com/v1/pages', {
         method: 'POST', headers,
@@ -104,11 +123,9 @@ export default async function handler(req, res) {
         'Confiança':     { select:    { name: planta.confianca || 'Baixa' } },
         Estat:           { select:    { name: 'Identificada' } },
       };
-      if (planta.foto_url) {
-        const url = String(planta.foto_url).trim();
-        if (url.startsWith('http')) {
-          properties['Foto URL'] = { files: [{ name: 'foto', type: 'external', external: { url } }] };
-        }
+      // Només canvia la foto si se n'ha pujat una de nova (la del pendent ja hi és)
+      if (planta.foto_upload_id) {
+        properties['Foto URL'] = { files: [{ type: 'file_upload', file_upload: { id: String(planta.foto_upload_id) }, name: 'foto.jpg' }] };
       }
       const r = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
         method: 'PATCH', headers,

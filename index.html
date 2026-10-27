@@ -286,7 +286,7 @@
     return res;
   }
 
-  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, gpsPromise = null;
+  let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, currentUploadId = null, gpsPromise = null;
   let currentLloc = 'Nostre', currentPendentPageId = null, cachedPendents = [];
 
   async function checkPassword() {
@@ -327,7 +327,7 @@
       document.getElementById('llocTriar').style.display = 'block';
     };
     reader.readAsDataURL(file);
-    currentPhotoURL = null;
+    currentPhotoURL = null; currentUploadId = null;
     getLocation(); hideResult();
   }
   function handleDrop(e) {
@@ -429,16 +429,19 @@
       if (result.error) throw new Error(result.error);
       currentResult = result;
 
-      // Puja la foto via Vercel (clau imgbb al servidor)
-      try {
-        const upRes = await apiFetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageData: base64Data }),
-        });
-        const upData = await upRes.json();
-        if (upData.url) { currentPhotoURL = upData.url; toast('📸 Foto pujada correctament!'); }
-      } catch (e) { /* Silenciós si no hi ha clau imgbb configurada */ }
+      // Puja la foto a Notion (si ve d'un pendent, la foto ja hi és)
+      if (!currentPendentPageId) {
+        try {
+          const upRes = await apiFetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageData: base64Data }),
+          });
+          const upData = await upRes.json();
+          if (upData.upload_id) { currentUploadId = upData.upload_id; toast('📸 Foto pujada correctament!'); }
+          else toast('⚠️ No s\'ha pogut pujar la foto: ' + (upData.error || upRes.status));
+        } catch (e) { toast('⚠️ No s\'ha pogut pujar la foto'); }
+      }
 
       showResult(result);
     } catch (err) {
@@ -502,7 +505,7 @@
         const r = await apiFetch('/api/pendents', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pageId: currentPendentPageId, ...currentResult, foto_url: currentPhotoURL || '' }),
+          body: JSON.stringify({ pageId: currentPendentPageId, ...currentResult, foto_upload_id: currentUploadId || '' }),
         });
         if (!r.ok) { const e = await r.json(); throw new Error(`Error Notion: ${JSON.stringify(e)}`); }
         cachedPendents = cachedPendents.filter(p => p.id !== currentPendentPageId);
@@ -517,7 +520,7 @@
           latitud:  currentLocation?.lat ?? null,
           longitud: currentLocation?.lon ?? null,
           lloc:     currentLloc || 'Nostre',
-          foto_url: currentPhotoURL || '',
+          foto_upload_id: currentUploadId || '',
         };
         const response = await apiFetch(VERCEL_SAVE, {
           method: 'POST',
@@ -525,6 +528,7 @@
           body: JSON.stringify(payload),
         });
         if (!response.ok) { const err = await response.json(); throw new Error(`Error Notion: ${JSON.stringify(err)}`); }
+        currentUploadId = null; // ja adjuntada; no es pot reutilitzar
 
         savePlantLocally({
           nom: currentResult.nom,
@@ -566,22 +570,21 @@
     const btn = errorEl ? errorEl.querySelector('button') : null;
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Pujant foto...'; }
     try {
-      let fotoUrl = currentPhotoURL;
-      if (!fotoUrl) {
+      let uploadId = currentUploadId;
+      if (!uploadId) {
         const base64Data = await resizeImage(currentFile, 1024);
         const upRes = await apiFetch('/api/upload', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageData: base64Data }),
         });
         const upData = await upRes.json();
-        fotoUrl = upData.url || '';
-        if (fotoUrl) currentPhotoURL = fotoUrl;
+        uploadId = upData.upload_id || '';
+        if (!uploadId) throw new Error("No s'ha pogut pujar la foto a Notion" + (upData.error ? ': ' + upData.error : ''));
       }
-      if (!fotoUrl) throw new Error("No s'ha pogut pujar la foto. Comprova la configuració d'imgbb.");
       const r = await apiFetch('/api/pendents', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          foto_url: fotoUrl,
+          foto_upload_id: uploadId,
           ubicacio: currentLocation?.nom || '',
           lat: currentLocation?.lat ?? null,
           lon: currentLocation?.lon ?? null,
@@ -589,7 +592,8 @@
           data: new Date().toISOString().split('T')[0],
         }),
       });
-      if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Error Notion'); }
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error || e.message || 'Error Notion'); }
+      currentUploadId = null;
       await fetchPendentsCount();
       toast('💾 Desat a Notion! Podràs identificar-ho des de qualsevol dispositiu.');
       if (btn) { btn.disabled = false; btn.textContent = '💾 Desa per més tard'; }
@@ -640,7 +644,8 @@
     closePendents();
     currentPendentPageId = id;
     try {
-      const res = await fetch(p.foto_url);
+      const res = await apiFetch(`/api/pendents?imatge=${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error();
       const blob = await res.blob();
       currentFile = new File([blob], 'pendent.jpg', { type: 'image/jpeg' });
     } catch {

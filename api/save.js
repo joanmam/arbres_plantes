@@ -40,11 +40,10 @@ export default async function handler(req, res) {
     if (planta.longitud != null) properties['Longitud'] = { number: Number(planta.longitud) };
     if (planta.lloc) properties['Lloc'] = { select: { name: String(planta.lloc) } };
     properties['Estat'] = { select: { name: 'Identificada' } };
-    const fotoUrl = String(planta.foto_url || '').trim();
-    if (fotoUrl.startsWith('http')) {
-      properties['Foto URL'] = {
-        files: [{ name: 'foto', type: 'external', external: { url: fotoUrl } }]
-      };
+    if (planta.foto_upload_id) {
+      properties['Foto URL'] = { files: [{ type: 'file_upload', file_upload: { id: String(planta.foto_upload_id) }, name: 'foto.jpg' }] };
+    } else if (String(planta.foto_url || '').trim().startsWith('http')) {
+      properties['Foto URL'] = { files: [{ name: 'foto', type: 'external', external: { url: String(planta.foto_url).trim() } }] };
     }
 
     const r = await fetch('https://api.notion.com/v1/pages', {
