@@ -160,7 +160,7 @@
 <header>
   <h1>🌿 Arbres i Plantes</h1>
   <button id="pendentsBtn" onclick="openPendents()">⏳<span id="pendentsBadge">0</span></button>
-  <button id="settingsBtn" onclick="if(confirm('Tancar sessió?')){localStorage.removeItem('appAuth');location.reload();}">🚪</button>
+  <button id="settingsBtn" onclick="if(confirm('Tancar sessió?')){localStorage.removeItem('appKey');location.reload();}">🚪</button>
 </header>
 
 <div class="tabs">
@@ -267,21 +267,49 @@
 <div id="toast"></div>
 
 <script>
-  const APP_PASSWORD = 'Plantes2026';
+  // ── Autenticació: la contrasenya es valida al servidor (APP_PASSWORD a Vercel) ──
+  function getAppKey() { try { return localStorage.getItem('appKey') || ''; } catch { return ''; } }
+
+  function showLogin() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loginInput').focus();
+  }
+
+  // fetch a les API pròpies amb la contrasenya a la capçalera
+  async function apiFetch(url, opts = {}) {
+    const headers = { ...(opts.headers || {}), 'x-app-key': getAppKey() };
+    const res = await fetch(url, { ...opts, headers });
+    if (res.status === 401) {
+      try { localStorage.removeItem('appKey'); } catch {}
+      showLogin();
+    }
+    return res;
+  }
 
   let currentFile = null, currentResult = null, currentLocation = null, currentPhotoURL = null, gpsPromise = null;
   let currentLloc = 'Nostre', currentPendentPageId = null, cachedPendents = [];
 
-  function checkPassword() {
+  async function checkPassword() {
     const val = document.getElementById('loginInput').value;
-    if (val === APP_PASSWORD) {
-      localStorage.setItem('appAuth', '1');
-      document.getElementById('loginScreen').style.display = 'none';
-    } else {
-      document.getElementById('loginError').style.display = 'block';
-      document.getElementById('loginInput').value = '';
-      document.getElementById('loginInput').focus();
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    try {
+      const r = await fetch('/api/login', { method: 'POST', headers: { 'x-app-key': val } });
+      if (r.ok) {
+        try { localStorage.setItem('appKey', val); localStorage.removeItem('appAuth'); } catch {}
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('loginInput').value = '';
+        fetchPendentsCount();
+        return;
+      }
+      const d = await r.json().catch(() => ({}));
+      errEl.textContent = r.status === 401 ? 'Contrasenya incorrecta' : (d.error || `Error ${r.status}`);
+    } catch (e) {
+      errEl.textContent = 'Sense connexió amb el servidor';
     }
+    errEl.style.display = 'block';
+    document.getElementById('loginInput').value = '';
+    document.getElementById('loginInput').focus();
   }
 
   function pickGallery() { const i = document.getElementById('fileInput'); i.removeAttribute('capture'); i.click(); }
@@ -387,7 +415,7 @@
       const mediaType = 'image/jpeg';
 
       // Identifica via Vercel (clau al servidor)
-      const response = await fetch('/api/identify', {
+      const response = await apiFetch('/api/identify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageData: base64Data, mediaType }),
@@ -403,7 +431,7 @@
 
       // Puja la foto via Vercel (clau imgbb al servidor)
       try {
-        const upRes = await fetch('/api/upload', {
+        const upRes = await apiFetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageData: base64Data }),
@@ -471,7 +499,7 @@
     try {
       if (currentPendentPageId) {
         // Actualitza el pendent existent a Notion
-        const r = await fetch('/api/pendents', {
+        const r = await apiFetch('/api/pendents', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pageId: currentPendentPageId, ...currentResult, foto_url: currentPhotoURL || '' }),
@@ -491,7 +519,7 @@
           lloc:     currentLloc || 'Nostre',
           foto_url: currentPhotoURL || '',
         };
-        const response = await fetch(VERCEL_SAVE, {
+        const response = await apiFetch(VERCEL_SAVE, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -525,7 +553,7 @@
 
   async function fetchPendentsCount() {
     try {
-      const r = await fetch('/api/pendents');
+      const r = await apiFetch('/api/pendents');
       const d = await r.json();
       cachedPendents = d.pendents || [];
       updatePendentsBadge();
@@ -541,7 +569,7 @@
       let fotoUrl = currentPhotoURL;
       if (!fotoUrl) {
         const base64Data = await resizeImage(currentFile, 1024);
-        const upRes = await fetch('/api/upload', {
+        const upRes = await apiFetch('/api/upload', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageData: base64Data }),
         });
@@ -550,7 +578,7 @@
         if (fotoUrl) currentPhotoURL = fotoUrl;
       }
       if (!fotoUrl) throw new Error("No s'ha pogut pujar la foto. Comprova la configuració d'imgbb.");
-      const r = await fetch('/api/pendents', {
+      const r = await apiFetch('/api/pendents', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           foto_url: fotoUrl,
@@ -576,7 +604,7 @@
     list.innerHTML = '<p style="color:var(--text-light);text-align:center">Carregant...</p>';
     document.getElementById('pendentsModal').classList.add('open');
     try {
-      const r = await fetch('/api/pendents');
+      const r = await apiFetch('/api/pendents');
       const d = await r.json();
       cachedPendents = d.pendents || [];
       updatePendentsBadge();
@@ -640,7 +668,7 @@
 
   async function arxivarPendent(id) {
     try {
-      const r = await fetch('/api/pendents', {
+      const r = await apiFetch('/api/pendents', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pageId: id, action: 'arxivar' }),
       });
@@ -686,7 +714,7 @@
     grid.innerHTML = ''; loading.style.display = 'block'; empty.style.display = 'none';
 
     try {
-      const res = await fetch(VERCEL_API);
+      const res = await apiFetch(VERCEL_API);
       const data = await res.json();
       loading.style.display = 'none';
       if (!res.ok) throw new Error(data.error || 'Error API');
@@ -795,13 +823,11 @@
   }
 
   window.onload = () => {
-    if (!localStorage.getItem('appAuth')) {
-      document.getElementById('loginScreen').style.display = 'flex';
-    }
+    document.getElementById('loginScreen').style.display = getAppKey() ? 'none' : 'flex';
     document.getElementById('loginInput')?.addEventListener('keydown', e => {
       if (e.key === 'Enter') checkPassword();
     });
-    fetchPendentsCount();
+    if (getAppKey()) fetchPendentsCount();
   };
 </script>
 </body>
